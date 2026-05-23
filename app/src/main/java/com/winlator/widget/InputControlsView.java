@@ -381,7 +381,7 @@ public class InputControlsView extends View {
                     touchpadView.setPointerButtonLeftEnabled(true);
                     for (ControlElement element : profile.getElements()) {
                         if (element.handleTouchDown(pointerId, x, y)) handled = true;
-                        if (element.getBindingAt(0) == Binding.MOUSE_LEFT_BUTTON) {
+                        if (element.getBindingAt(0) == Binding.MOUSE_LEFT_BUTTON && element.getLastBindingIndex() == 0) {
                             touchpadView.setPointerButtonLeftEnabled(false);
                         }
                     }
