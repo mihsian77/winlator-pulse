@@ -92,27 +92,10 @@ public abstract class WineUtils {
         }
 
         final String[] direct3dLibs = {"d3d8", "d3d9", "d3d10", "d3d10_1", "d3d10core", "d3d11", "d3d12", "d3d12core", "ddraw", "dxgi", "wined3d"};
-        final String[] inputLibs = {"dinput", "dinput8", "xinput1_1", "xinput1_2", "xinput1_3", "xinput1_4", "xinput9_1_0", "xinputuap"};
         final String dllOverridesKey = "Software\\Wine\\DllOverrides";
-
-        boolean isMainWineVersion = WineInfo.isMainWineVersion(wineInfo.identifier());
-
-        File wineSystem32Dir = new File(rootDir, "/opt/wine/lib/wine/x86_64-windows");
-        File wineSysWoW64Dir = new File(rootDir, "/opt/wine/lib/wine/i386-windows");
-        File containerSystem32Dir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows/system32");
-        File containerSysWoW64Dir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows/syswow64");
 
         try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
             for (String name : direct3dLibs) registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
-            for (String name : inputLibs) {
-                if (!isMainWineVersion) {
-                    registryEditor.setStringValue(dllOverridesKey, name, "native,builtin");
-
-                    FileUtils.copy(new File(wineSysWoW64Dir, name+".dll"), new File(containerSysWoW64Dir, name+".dll"));
-                    FileUtils.copy(new File(wineSystem32Dir, name+".dll"), new File(containerSystem32Dir, name+".dll"));
-                }
-                else registryEditor.setStringValue(dllOverridesKey, name, "builtin,native");
-            }
 
             registryEditor.removeKey("Software\\Winlator\\WFM\\ContextMenu\\7-Zip");
             registryEditor.setStringValue("Software\\Winlator\\WFM\\ContextMenu\\7-Zip", "Open Archive", "Z:\\opt\\apps\\7-Zip\\7zFM.exe \"%FILE%\"");
