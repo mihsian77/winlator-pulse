@@ -190,7 +190,7 @@
     <string name="move_cursor_to_touchpoint">Mover o cursor para o ponto de toque</string>
     <string name="sync_every_frame">Sincronizar cada quadro</string>
     <string name="dpi_font_size">DPI (Tamanho da Fonte)</string>
-    <string name="preferred_input_api">API de Entrada Preferida</string>
+    <string name="gamepad_model">Modelo do Gamepad</string>
     <string name="file_manager">Gerenciador de Arquivos</string>
     <string name="documents">Documentos</string>
     <string name="items">itens</string>
@@ -289,4 +289,5 @@
     <string name="simple_fps">Simples (FPS)</string>
     <string name="full">Completo</string>
     <string name="renderer">Renderizador</string>
+    <string name="default_no_override">Padrão (Sem sobrescrita)</string>
 </resources>

@@ -246,7 +246,7 @@
     <string name="move_cursor_to_touchpoint">Move Cursor to Touchpoint</string>
     <string name="sync_every_frame">Sync every frame</string>
     <string name="dpi_font_size">DPI (Font Size)</string>
-    <string name="preferred_input_api">Preferred Input API</string>
+    <string name="gamepad_model">Gamepad Model</string>
     <string name="file_manager">File Manager</string>
     <string name="documents">Documents</string>
     <string name="items">items</string>
@@ -347,4 +347,5 @@
     <string name="full">Full</string>
     <string name="ddraw_wrapper" translatable="false">DDraw Wrapper</string>
     <string name="renderer">Renderer</string>
+    <string name="default_no_override">Default (No override)</string>
 </resources>
