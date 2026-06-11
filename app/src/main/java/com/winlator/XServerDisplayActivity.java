@@ -202,8 +202,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             audioDriverConfig = new KeyValueSet(container.getAudioDriverConfig());
             screenInfo = new ScreenInfo(container.getScreenSize());
 
-            int preferredInputApiIdx = preferences.getInt("preferred_input_api", GamepadHandler.PreferredInputApi.AUTO.ordinal());
-
             if (shortcut != null) {
                 graphicsDriver = shortcut.getExtra("graphicsDriver", container.getGraphicsDriver());
                 audioDriver = shortcut.getExtra("audioDriver", container.getAudioDriver());
@@ -217,9 +215,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 String dinputMapperType = shortcut.getExtra("dinputMapperType");
                 if (!dinputMapperType.isEmpty()) winHandler.gamepadHandler.setDInputMapperType(Byte.parseByte(dinputMapperType));
 
-                String preferredInputApi = shortcut.getExtra("preferredInputApi");
-                if (!preferredInputApi.isEmpty()) preferredInputApiIdx = Byte.parseByte(preferredInputApi);
-
                 win32AppWorkarounds.applyStartupWorkarounds(!shortcut.wmClass.isEmpty() ? shortcut.wmClass : shortcut.path);
             }
             else {
@@ -231,8 +226,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             this.graphicsDriverConfig = GraphicsDrivers.parseConfigs(graphicsDriver, graphicsDriverConfig);
             this.dxwrapper = DXWrappers.parseIdentifier(dxwrapper);
             this.dxwrapperConfig = DXWrappers.parseConfigs(dxwrapper, dxwrapperConfig);
-
-            winHandler.gamepadHandler.setPreferredInputApi(GamepadHandler.PreferredInputApi.values()[preferredInputApiIdx]);
         }
 
         preloaderDialog.show(R.string.starting_up);

@@ -92,12 +92,6 @@
         <item>@string/startup_selection_essential</item>
         <item>@string/startup_selection_aggressive</item>
     </string-array>
-    <string-array name="preferred_input_api_entries">
-        <item>@string/auto</item>
-        <item>DirectInput</item>
-        <item>XInput</item>
-        <item>@string/both</item>
-    </string-array>
     <string-array name="audio_performance_mode_entries">
         <item>@string/none</item>
         <item>@string/low_latency</item>
