@@ -218,9 +218,10 @@ public abstract class WineUtils {
         return false;
     }
 
-    public static void changeServicesStatus(Container container, boolean onlyEssential) {
+    public static void changeServicesStatus(Container container, byte startupSelection) {
         final byte SERVICE_DISABLED = 4;
-        final String[] services = {"BITS:3", "Eventlog:2", "HTTP:3", "LanmanServer:3", "NDIS:2", "PlugPlay:2", "RpcSs:3", "scardsvr:3", "Schedule:3", "Spooler:3", "StiSvc:3", "TermService:3", "winebus:3", "winehid:3", "Winmgmt:3", "wuauserv:3", "winebth:3"};
+        final String[] services = {"BITS:3", "Eventlog:2", "HTTP:3", "LanmanServer:3", "NDIS:2", "PlugPlay:2", "RpcSs:3", "scardsvr:3", "Schedule:3", "Spooler:3", "StiSvc:3", "TermService:3", "Winmgmt:3", "wuauserv:3", "winebth:3"};
+        final String[] extraServices = {"nsiproxy:2", "MSIServer:3", "FontCache:3"};
         File systemRegFile = new File(container.getRootDir(), ".wine/system.reg");
 
         try (WineRegistryEditor registryEditor = new WineRegistryEditor(systemRegFile)) {
@@ -231,7 +232,13 @@ public abstract class WineUtils {
 
             for (String service : services) {
                 String name = service.substring(0, service.indexOf(":"));
-                int value = onlyEssential ? SERVICE_DISABLED : Character.getNumericValue(service.charAt(service.length()-1));
+                int value = startupSelection != Container.STARTUP_SELECTION_NORMAL ? SERVICE_DISABLED : Character.getNumericValue(service.charAt(service.length()-1));
+                registryEditor.setDwordValue(controlSetPath+"\\Services\\"+name, "Start", value);
+            }
+
+            for (String service : extraServices) {
+                String name = service.substring(0, service.indexOf(":"));
+                int value = startupSelection == Container.STARTUP_SELECTION_AGGRESSIVE ? SERVICE_DISABLED : Character.getNumericValue(service.charAt(service.length()-1));
                 registryEditor.setDwordValue(controlSetPath+"\\Services\\"+name, "Start", value);
             }
         }

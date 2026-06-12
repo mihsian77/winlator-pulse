@@ -119,7 +119,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     private String dxwrapper = Container.DEFAULT_DXWRAPPER;
     private ScreenInfo screenInfo = new ScreenInfo(Container.DEFAULT_SCREEN_SIZE);
     private KeyValueSet[] dxwrapperConfig;
-    private KeyValueSet[] graphicsDriverConfig;
+    private KeyValueSet[] graphicsDriverConfig = {new KeyValueSet(), new KeyValueSet()};
     private KeyValueSet audioDriverConfig;
     private String wincomponents;
     private WineInfo wineInfo;
@@ -460,7 +460,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         String startupSelection = String.valueOf(container.getStartupSelection());
         if (!startupSelection.equals(container.getExtra("startupSelection")) || wineprefixWasUpdated) {
-            WineUtils.changeServicesStatus(container, container.getStartupSelection() != Container.STARTUP_SELECTION_NORMAL);
+            WineUtils.changeServicesStatus(container, container.getStartupSelection());
             container.putExtra("startupSelection", startupSelection);
             containerDataChanged = true;
         }
@@ -493,7 +493,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         if (container != null) {
             if (container.getHUDMode() == FrameRating.Mode.FULL.ordinal()) envVars.put("X11_WND_GPU_INFO", "1");
-            if (container.getStartupSelection() == Container.STARTUP_SELECTION_AGGRESSIVE) winHandler.killProcess("services.exe");
 
             String desktopName = shortcut != null || getIntent().hasExtra("exec_path") ? "nogui" : "shell";
             String guestExecutable = "wine explorer /desktop="+desktopName+","+xServer.screenInfo+" "+getWineStartCommand();

@@ -273,7 +273,7 @@
     <string name="solid_color">Сплошной цвет</string>
     <string name="startup_selection_normal">Нормальный (Загрузить все службы)</string>
     <string name="startup_selection_essential">Основной (Загрузить только основные службы)</string>
-    <string name="startup_selection_aggressive">Агрессивный (Остановить службы при запуске)</string>
+    <string name="startup_selection_aggressive">Агрессивный (Загрузите минимальное количество сервисов)</string>
     <string name="both">Оба</string>
     <string name="low_latency">Низкая задержка</string>
     <string name="power_saving">Энергосбережение</string>
