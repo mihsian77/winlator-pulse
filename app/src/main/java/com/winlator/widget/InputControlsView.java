@@ -486,7 +486,7 @@ public class InputControlsView extends View {
                 mouseMoveOffset.y = isActionDown ? (offset != 0 ? offset : (binding == Binding.MOUSE_MOVE_UP ? -1 : 1)) : 0;
                 if (isActionDown) createMouseMoveTimer();
             }
-            else if (binding.keycode.id >= XKeycode.KEY_CUSTOM_1.id) {
+            else if (binding.keycode.isCustomKey()) {
                 if (!isActionDown) handleCommandKeyEvent(binding);
             }
             else {
