@@ -1,0 +1,153 @@
+name: 同步上游（PR 模式）
+
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: '强制同步（即使上游无新提交也重新生成 PR）'
+        type: boolean
+        default: false
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_REPO: 'hostei33/winlator-cn'
+  UPSTREAM_BRANCH: 'main'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: false
+          fetch-depth: 0
+
+      - name: 配置 git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git"
+
+      - name: 添加上游并拉取
+        run: |
+          git fetch origin main
+          git remote remove upstream 2>/dev/null || true
+          git remote add upstream "https://github.com/${UPSTREAM_REPO}.git"
+          git fetch upstream "${UPSTREAM_BRANCH}" 2>&1 | tail -3
+          echo "=== 上游最新提交 ==="
+          git log upstream/${UPSTREAM_BRANCH} --oneline -1
+
+      - name: 检查上游是否有新提交
+        id: check
+        run: |
+          LOCAL=$(git rev-parse origin/main)
+          UPSTREAM=$(git rev-parse upstream/${UPSTREAM_BRANCH})
+          echo "本地 main: ${LOCAL:0:10}  上游: ${UPSTREAM:0:10}"
+          if [ "$LOCAL" = "$UPSTREAM" ] && [ "${{ github.event.inputs.force_sync }}" != "true" ]; then
+            echo "up_to_date=true" >> $GITHUB_OUTPUT
+            echo "上游无新提交，跳过。"
+          else
+            echo "up_to_date=false" >> $GITHUB_OUTPUT
+            echo "上游有新提交（或强制同步），开始合并。"
+          fi
+
+      - name: 合并上游到 auto-sync 分支
+        id: merge
+        if: steps.check.outputs.up_to_date == 'false'
+        run: |
+          BRANCH="auto-sync"
+          echo "sync_branch=$BRANCH" >> $GITHUB_OUTPUT
+
+          git checkout -B "$BRANCH" origin/main
+
+          OURS_FILES=(
+            "README.md"
+            "app/build.gradle"
+            "app/src/main/AndroidManifest.xml"
+            "app/src/main/java/com/winlator/widget/FrameRating.java"
+          )
+
+          is_ours() {
+            local f="$1" e
+            for e in "${OURS_FILES[@]}"; do [ "$e" = "$f" ] && return 0; done
+            return 1
+          }
+
+          if git merge upstream/${UPSTREAM_BRANCH} --no-edit --allow-unrelated-histories; then
+            echo "=== 上游合并成功（无冲突）==="
+          else
+            echo "=== merge 有冲突，按保护策略逐文件处理 ==="
+            git diff --name-only --diff-filter=U | while read f; do
+              if git ls-files -u "$f" | awk '{print $3}' | grep -q '^3$'; then
+                if is_ours "$f"; then
+                  echo "🛡 保留我们的版本: $f"
+                  git checkout --ours "$f"
+                else
+                  echo "⬆ 采用上游新版: $f"
+                  git checkout --theirs "$f"
+                fi
+              else
+                git checkout --ours "$f" 2>/dev/null || git rm -f "$f" 2>/dev/null || true
+              fi
+              git add "$f" 2>/dev/null || true
+            done
+            git commit --no-edit || echo "无变更可提交，跳过"
+          fi
+
+          git add -A 2>/dev/null || true
+          if git diff --cached --quiet 2>/dev/null; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "与 main 无差异，不开 PR。"
+          else
+            git commit --amend --no-edit 2>/dev/null || git commit --no-edit
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "有差异，准备开 PR。"
+          fi
+
+      - name: 推送 auto-sync 分支
+        if: steps.check.outputs.up_to_date == 'false' && steps.merge.outputs.has_changes == 'true'
+        run: |
+          BRANCH="${{ steps.merge.outputs.sync_branch }}"
+          git push --force origin "$BRANCH" 2>&1 | tail -3
+
+      - name: 创建/更新 PR 到 main
+        if: steps.check.outputs.up_to_date == 'false' && steps.merge.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          BRANCH="${{ steps.merge.outputs.sync_branch }}"
+          UPSTREAM_MSG=$(git log upstream/${UPSTREAM_BRANCH} --oneline -5 2>/dev/null | sed 's/^/  /')
+          BODY="## 自动同步上游 hostei33/winlator-cn
+
+          此 PR 由定时工作流自动创建。
+
+          ### 说明
+          - 上游更新已按保护策略合并：共存/HUD 定制文件保留我们的版本
+          - 此 PR 会自动触发 build-coexist 构建验证
+          - **构建绿色后再合并**
+
+          ### 上游最近提交
+          \`\`\`
+          $UPSTREAM_MSG
+          \`\`\`
+          "
+          EXIST=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null)
+          if [ -n "$EXIST" ]; then
+            gh pr edit "$EXIST" --title "sync: 同步上游（自动生成）" --body "$BODY"
+          else
+            gh pr create --base main --head "$BRANCH" --title "sync: 同步上游（自动生成）" --body "$BODY"
+          fi
+
+      - name: 无更新时提示
+        if: steps.check.outputs.up_to_date == 'true'
+        run: echo "上游已是最新，无需同步。"

@@ -1,0 +1,82 @@
+name: 构建共存版 Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      coexistAppId:
+        description: '共存版包名（留空用默认 com.winlator.coexist）'
+        required: false
+        default: 'com.winlator.coexist'
+
+env:
+  JAVA_VERSION: '17'
+  NDK_VERSION: '24.0.8215888'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - name: Install NDK and CMake
+        run: |
+          sdkmanager --install "ndk;${{ env.NDK_VERSION }}" "cmake;3.22.1"
+
+      - name: Create release keystore
+        run: |
+          keytool -genkey -v -keystore release.keystore \
+            -alias winlator \
+            -keyalg RSA -keysize=2048 -validity=10000 \
+            -storepass winlator123 -keypass winlator123 \
+            -dname "CN=WinlatorCN, OU=Dev, O=WinlatorCN, L=CN, ST=CN, C=CN"
+
+      - name: Build coexist APK
+        run: |
+          chmod +x gradlew
+          APP_ID="${{ github.event.inputs.coexistAppId || 'com.winlator.coexist' }}"
+          echo "使用包名: $APP_ID"
+          ./gradlew assembleCoexistRelease --no-daemon -PcoexistAppId="$APP_ID" \
+            -Pandroid.injected.signing.store.file=$PWD/release.keystore \
+            -Pandroid.injected.signing.store.password=winlator123 \
+            -Pandroid.injected.signing.key.alias=winlator \
+            -Pandroid.injected.signing.key.password=winlator123
+
+      - name: Rename APK
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          mv app/build/outputs/apk/coexist/release/app-coexist-release.apk "WinlatorCN-coexist-${SHA}-${TIMESTAMP}.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: winlator-coexist-apk
+          path: "*.apk"
+          retention-days: 30
+
+      - name: Release on tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.apk"
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,6 +2,10 @@ package com.winlator.widget;
 
 import android.app.ActivityManager;
 import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.os.BatteryManager;
 import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
@@ -17,15 +21,25 @@ import com.winlator.core.StringUtils;
 
 import java.util.Locale;
 
+/**
+ * 升级版性能 HUD
+ * 新增：帧时间柱状图、电池温度、帧率颜色编码（绿/黄/红）
+ */
 public class FrameRating extends FrameLayout implements Runnable {
     public enum Mode {DISABLED, SIMPLE, FULL}
     private long lastTime = 0;
     private short frameCount = 0;
     private float lastFPS = 0;
+    private long lastFrameTimeNs = 0;
+    private float lastFrameTimeMs = 0;
+    private final float[] frameTimeHistory = new float[60];
+    private int frameTimeIndex = 0;
     private final LinearLayout fpsPanel;
     private final LinearLayout gpuPanel;
     private final LinearLayout ramPanel;
     private final LinearLayout cpuPanel;
+    private final FrameTimeChart frameTimeChart;
+    private final TextView batteryView;
     private Mode mode = Mode.SIMPLE;
     private ActivityManager activityManager;
     private ActivityManager.MemoryInfo memoryInfo;
@@ -48,6 +62,19 @@ public class FrameRating extends FrameLayout implements Runnable {
         gpuPanel = view.findViewById(R.id.LLGPUPanel);
         ramPanel = view.findViewById(R.id.LLRAMPanel);
         cpuPanel = view.findViewById(R.id.LLCPUPanel);
+
+        // 帧时间柱状图和电池温度（新增，放在 fpsPanel 下方）
+        frameTimeChart = new FrameTimeChart(context);
+        batteryView = new TextView(context);
+        batteryView.setTextSize(10);
+        batteryView.setTextColor(Color.WHITE);
+        batteryView.setPadding(4, 2, 4, 2);
+        LinearLayout.LayoutParams chartParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 30);
+        frameTimeChart.setLayoutParams(chartParams);
+        ((LinearLayout) fpsPanel.getParent()).addView(frameTimeChart);
+        ((LinearLayout) fpsPanel.getParent()).addView(batteryView);
+
         addView(view);
         setupPanels();
     }
@@ -59,7 +86,8 @@ public class FrameRating extends FrameLayout implements Runnable {
                 gpuPanel.setVisibility(GONE);
                 ramPanel.setVisibility(GONE);
                 cpuPanel.setVisibility(GONE);
-                
+                frameTimeChart.setVisibility(GONE);
+                batteryView.setVisibility(GONE);
                 activityManager = null;
                 memoryInfo = null;
                 break;
@@ -68,7 +96,8 @@ public class FrameRating extends FrameLayout implements Runnable {
                 gpuPanel.setVisibility(GONE);
                 ramPanel.setVisibility(GONE);
                 cpuPanel.setVisibility(GONE);
-
+                frameTimeChart.setVisibility(VISIBLE);
+                batteryView.setVisibility(GONE);
                 activityManager = null;
                 memoryInfo = null;
                 break;
@@ -77,7 +106,8 @@ public class FrameRating extends FrameLayout implements Runnable {
                 gpuPanel.setVisibility(VISIBLE);
                 ramPanel.setVisibility(VISIBLE);
                 cpuPanel.setVisibility(VISIBLE);
-
+                frameTimeChart.setVisibility(VISIBLE);
+                batteryView.setVisibility(VISIBLE);
                 Context context = getContext();
                 activityManager = (ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);
                 memoryInfo = new ActivityManager.MemoryInfo();
@@ -103,9 +133,19 @@ public class FrameRating extends FrameLayout implements Runnable {
         lastTime = SystemClock.elapsedRealtime();
         lastFPS = 0;
         tick = 2;
+        frameTimeIndex = 0;
+        for (int i = 0; i < 60; i++) frameTimeHistory[i] = 0;
     }
 
     public void update() {
+        long now = System.nanoTime();
+        if (lastFrameTimeNs != 0) {
+            lastFrameTimeMs = (now - lastFrameTimeNs) / 1_000_000.0f;
+            frameTimeHistory[frameTimeIndex] = lastFrameTimeMs;
+            frameTimeIndex = (frameTimeIndex + 1) % 60;
+        }
+        lastFrameTimeNs = now;
+
         long time = SystemClock.elapsedRealtime();
         if (time >= lastTime + 500) {
             lastFPS = ((float)(frameCount * 1000) / (time - lastTime));
@@ -113,14 +153,25 @@ public class FrameRating extends FrameLayout implements Runnable {
             lastTime = time;
             frameCount = 0;
         }
-
         frameCount++;
     }
 
     @Override
     public void run() {
         if (getVisibility() == GONE) setVisibility(View.VISIBLE);
-        ((TextView)fpsPanel.getChildAt(1)).setText(String.format(Locale.ENGLISH, "%.1f", lastFPS));
+
+        // 帧率颜色编码：绿>=50, 黄>=30, 红<30
+        int fpsColor;
+        if (lastFPS >= 50) fpsColor = Color.parseColor("#35D0BA");
+        else if (lastFPS >= 30) fpsColor = Color.parseColor("#FFB020");
+        else fpsColor = Color.parseColor("#FF5A5A");
+
+        TextView fpsText = (TextView) fpsPanel.getChildAt(1);
+        fpsText.setText(String.format(Locale.ENGLISH, "%.1f", lastFPS));
+        fpsText.setTextColor(fpsColor);
+
+        // 刷新柱状图
+        frameTimeChart.invalidate();
 
         if (mode == Mode.FULL && ++tick >= 2) {
             tick = 0;
@@ -137,6 +188,55 @@ public class FrameRating extends FrameLayout implements Runnable {
             int maxClockSpeed = 0;
             for (short clockSpeed : clockSpeeds) maxClockSpeed = Math.max(maxClockSpeed, clockSpeed);
             ((TextView)cpuPanel.getChildAt(1)).setText(CPUStatus.formatClockSpeed(maxClockSpeed)+" | "+cpuInfo);
+
+            // 电池温度
+            BatteryManager bm = (BatteryManager) getContext().getSystemService(Context.BATTERY_SERVICE);
+            if (bm != null) {
+                int tempC = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_TEMPERATURE) / 10;
+                batteryView.setText(String.format(Locale.ENGLISH, "%.0f°C", (float)tempC));
+            }
+        }
+    }
+
+    /**
+     * 帧时间柱状图 View：显示最近 60 帧的帧时间
+     * 绿色=快(<16ms), 黄色=中(16-33ms), 红色=慢(>33ms)
+     */
+    private class FrameTimeChart extends View {
+        private final Paint barPaint = new Paint();
+        private final Paint linePaint = new Paint();
+
+        public FrameTimeChart(Context context) {
+            super(context);
+            barPaint.setAntiAlias(true);
+            linePaint.setColor(Color.parseColor("#66FFFFFF"));
+            linePaint.setStrokeWidth(1);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            int w = getWidth();
+            int h = getHeight();
+            float barWidth = w / 60.0f;
+
+            // 60fps 线（16.67ms）
+            float y60 = h * (16.67f / 50.0f);
+            canvas.drawLine(0, y60, w, y60, linePaint);
+
+            // 绘制柱状图
+            for (int i = 0; i < 60; i++) {
+                float ft = frameTimeHistory[(frameTimeIndex + i) % 60];
+                if (ft <= 0) continue;
+                float barH = Math.min(ft / 50.0f, 1.0f) * h;
+                float x = i * barWidth;
+
+                if (ft < 16.67f) barPaint.setColor(Color.parseColor("#35D0BA"));
+                else if (ft < 33.33f) barPaint.setColor(Color.parseColor("#FFB020"));
+                else barPaint.setColor(Color.parseColor("#FF5A5A"));
+
+                canvas.drawRect(x, h - barH, x + barWidth - 1, h, barPaint);
+            }
         }
     }
 }

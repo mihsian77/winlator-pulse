@@ -12,6 +12,20 @@ android {
         versionName "11.2.cn.04"
     }
 
+    // 共存 flavor：编译时通过 -PcoexistAppId=com.xxx.xxx 指定新包名
+    // 用法: ./gradlew assembleCoexistRelease -PcoexistAppId=com.xxx.xxx
+    flavorDimensions "coexist"
+    productFlavors {
+        main {
+            dimension "coexist"
+            applicationId 'com.winlator'
+        }
+        coexist {
+            dimension "coexist"
+            applicationId project.hasProperty('coexistAppId') ? project.coexistAppId : 'com.winlator.coexist'
+        }
+    }
+
     buildTypes {
         debug {
             minifyEnabled true
