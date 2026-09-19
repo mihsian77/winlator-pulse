@@ -1,3 +1,6 @@
+#pragma once
+#include <stdlib.h>
+
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array)[0])
 #define MIN(a, b) (((a)<(b))?(a):(b))
 #define MAX(a, b) (((a)>(b))?(a):(b))
@@ -11,7 +14,12 @@
 #define BITMASK_UNSET(bits, flag) bits &= ~flag
 #define GETEXP(x) (31 - __builtin_clz(x))
 
-#define APP_CACHE_DIR "/data/data/com.winlator/cache"
+// 共存版：cache 目录由 Java 层通过环境变量传入，避免硬编码包名路径
+static inline const char* getAppCacheDir() {
+    const char* dir = getenv("APP_CACHE_DIR");
+    return dir ? dir : "/data/data/com.winlator/cache";
+}
+#define APP_CACHE_DIR getAppCacheDir()
 #define LIBVULKAN_PATH "/system/lib64/libvulkan.so"
 
 #define CLOSEFD(x) \
