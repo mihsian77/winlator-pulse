@@ -24,9 +24,6 @@ jobs:
         with:
           lfs: false
 
-      - name: Remove assets
-        run: rm -rf app/src/main/assets
-
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
