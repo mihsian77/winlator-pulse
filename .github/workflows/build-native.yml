@@ -55,7 +55,7 @@ jobs:
       - name: Build release APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon \
+          ./gradlew assembleStandardRelease --no-daemon \
             -Pandroid.injected.signing.store.file=$PWD/debug.keystore \
             -Pandroid.injected.signing.store.password=android \
             -Pandroid.injected.signing.key.alias=androiddebugkey \
@@ -67,7 +67,7 @@ jobs:
           BRANCH=${BRANCH//\//-}
           SHA=$(git rev-parse --short HEAD)
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          mv app/build/outputs/apk/release/app-release.apk "Winlator-native-${BRANCH}-${SHA}-${TIMESTAMP}.apk"
+          mv app/build/outputs/apk/standard/release/app-standard-release.apk "Winlator-native-${BRANCH}-${SHA}-${TIMESTAMP}.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

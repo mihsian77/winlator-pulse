@@ -16,7 +16,7 @@ android {
     // 用法: ./gradlew assembleCoexistRelease -PcoexistAppId=com.xxx.xxx
     flavorDimensions "coexist"
     productFlavors {
-        main {
+        standard {
             dimension "coexist"
             applicationId 'com.winlator'
         }

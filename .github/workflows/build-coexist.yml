@@ -44,7 +44,7 @@ jobs:
         run: |
           keytool -genkey -v -keystore release.keystore \
             -alias winlator \
-            -keyalg RSA -keysize=2048 -validity=10000 \
+            -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass winlator123 -keypass winlator123 \
             -dname "CN=WinlatorCN, OU=Dev, O=WinlatorCN, L=CN, ST=CN, C=CN"
 

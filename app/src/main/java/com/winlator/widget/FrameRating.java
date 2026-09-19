@@ -189,11 +189,12 @@ public class FrameRating extends FrameLayout implements Runnable {
             for (short clockSpeed : clockSpeeds) maxClockSpeed = Math.max(maxClockSpeed, clockSpeed);
             ((TextView)cpuPanel.getChildAt(1)).setText(CPUStatus.formatClockSpeed(maxClockSpeed)+" | "+cpuInfo);
 
-            // 电池温度
-            BatteryManager bm = (BatteryManager) getContext().getSystemService(Context.BATTERY_SERVICE);
-            if (bm != null) {
-                int tempC = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_TEMPERATURE) / 10;
-                batteryView.setText(String.format(Locale.ENGLISH, "%.0f°C", (float)tempC));
+            // 电池温度（通过 sticky broadcast 获取，BATTERY_PROPERTY_TEMPERATURE 不存在）
+            android.content.Intent batteryIntent = getContext().registerReceiver(null, new android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED));
+            if (batteryIntent != null) {
+                int tempTenths = batteryIntent.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, 0);
+                float tempC = tempTenths / 10.0f;
+                batteryView.setText(String.format(Locale.ENGLISH, "%.0f°C", tempC));
             }
         }
     }

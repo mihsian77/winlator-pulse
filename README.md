@@ -2,59 +2,47 @@
 	<img src="logo.png" width="376" height="128" alt="Winlator Logo" />
 </p>
 
-# Winlator CN Coexist
+# Winlator Pulse
 
-> 基于 [hostei33/winlator-cn](https://github.com/hostei33/winlator-cn) 的二次开发版，专注**多版本共存**与**性能监控升级**。
+Winlator 的二次维护分支，聚焦两件事：**多版本共存**和**可观测性升级**。
 
-## 核心特性
+## 这个仓库解决什么问题
 
-- **多版本共存**：支持编译时一键指定任意包名，与原版/其他共存版同时安装互不干扰
-- **升级版性能 HUD**：在原版 FPS/GPU/RAM/CPU 基础上，新增帧时间柱状图、电池温度、帧率颜色编码
-- **自动跟随上游**：每日自动同步 hostei33/winlator-cn 最新提交，PR 模式验证后合并
+原版 Winlator 只能装一个，换版本就得卸载。本仓库通过 `productFlavors` 把包名变成编译期参数——你想装几个版本就编几个，包名任意合法字符串，数据目录自动隔离，互不干扰。
 
-## 下载
+性能监控方面，原版 HUD 只有数字。这里加了帧时间柱状图和电池温度，配合颜色编码，跑游戏时不用猜卡在哪。
 
-前往 [Releases](../../releases) 下载最新 APK。
-
-## 共存版编译说明
-
-本仓库支持通过 Gradle 属性编译不同包名的共存版本：
+## 共存机制
 
 ```bash
-# 编译共存版（包名 com.xxx.xxx）
-./gradlew assembleCoexistRelease -PcoexistAppId=com.xxx.xxx
+./gradlew assembleCoexistRelease -PcoexistAppId=com.your.name
 ```
 
-- `main` flavor：默认包名 `com.winlator`
-- `coexist` flavor：通过 `-PcoexistAppId=` 指定新包名，数据目录自动隔离
+- `standard` flavor：`com.winlator`，和原版完全一致
+- `coexist` flavor：读 `-PcoexistAppId`，默认 `com.winlator.coexist`
 
-## HUD 说明
+包名遵循 Android 规范——每个点分段不超过 63 字符，总长不超过 256 字符。`FileProvider` 和 `MTDataFilesProvider` 的 authority 跟着 `${applicationId}` 走，不会冲突。`getExternalFilesDir()` 自动指向新包名的目录，rootfs、容器、配置全隔离。
 
-| 模式 | 显示内容 |
-|------|---------|
-| SIMPLE | FPS + 帧时间柱状图 |
-| FULL | FPS + 帧时间柱状图 + GPU + RAM + CPU + 电池温度 |
+## HUD
 
-帧率颜色：**绿色** ≥50 FPS，**黄色** 30-50 FPS，**红色** <30 FPS
+| 模式 | 显示 |
+|------|------|
+| 关闭 | 无 |
+| 简单 | FPS + 帧时间柱 |
+| 完整 | FPS + 帧时间柱 + GPU + RAM + CPU 频率 + 电池温度 |
 
-帧时间柱状图：绿色 <16.7ms（60fps），黄色 16.7-33.3ms（30-60fps），红色 >33.3ms（<30fps）
+帧率染色：≥50 绿，30–50 黄，<30 红。帧时间柱同理，16.7ms / 33.3ms 两条参考线。
 
-## 致谢与第三方项目
+## 自动同步
 
-- 原项目 [brunodev85/winlator](https://github.com/brunodev85/winlator)
-- GLIBC Patches by [Termux Pacman](https://github.com/termux-pacman/glibc-packages)
-- Wine ([winehq.org](https://www.winehq.org/))
-- Box86/Box64 by [ptitSeb](https://github.com/ptitSeb)
-- Mesa (Turnip/Zink/VirGL) ([mesa3d.org](https://www.mesa3d.org))
-- DXVK ([github.com/doitsujin/dxvk](https://github.com/doitsujin/dxvk))
-- VKD3D ([gitlab.winehq.org/wine/vkd3d](https://gitlab.winehq.org/wine/vkd3d))
-- CNC DDraw ([github.com/FunkyFr3sh/cnc-ddraw](https://github.com/FunkyFr3sh/cnc-ddraw))
-- RootFS & WFM by [Waim908](https://github.com/Waim908)
-- HUD 设计参考 [Xnick417x/WinNative](https://github.com/Xnick417x/WinNative)
+每天 UTC 18:00 拉取 [hostei33/winlator-cn](https://github.com/hostei33/winlator-cn) 的 main，合并到 `auto-sync` 分支开 PR。`build.gradle`、`AndroidManifest.xml`、`FrameRating.java`、`README.md` 这四个文件在合并时强制保留本仓库版本，其余走三方合并。
 
-特别感谢所有参与这些项目的开发者。<br>
-感谢所有信任并支持本项目的人们。
+## 相关项目
+
+- RootFS / Box64 构建：[hao728/bfm-zh](https://github.com/hao728/bfm-zh)
+- 上游：[hostei33/winlator-cn](https://github.com/hostei33/winlator-cn)
+- 原始项目：[brunodev85/winlator](https://github.com/brunodev85/winlator)
 
 ## License
 
-GPL v3
+GPL-3.0
