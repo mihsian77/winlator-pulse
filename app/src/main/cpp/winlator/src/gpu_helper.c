@@ -64,7 +64,9 @@ done:
 JNIEXPORT jint JNICALL
 Java_com_winlator_core_GPUHelper_vkGetApiVersion() {
     int version = 0;
-    char* content = fileGetContents(APP_CACHE_DIR "/.vk-api-version", NULL, NULL);
+    char vkApiPath[256] = {0};
+    snprintf(vkApiPath, sizeof(vkApiPath), "%s/.vk-api-version", getAppCacheDir());
+    char* content = fileGetContents(vkApiPath, NULL, NULL);
     if (content) {
         version = strtol(content, NULL, 10);
         MEMFREE(content);
@@ -116,7 +118,7 @@ Java_com_winlator_core_GPUHelper_vkGetApiVersion() {
 
     char value[32] = {0};
     sprintf(value, "%d", version);
-    filePutContents(APP_CACHE_DIR "/.vk-api-version", value, strlen(value));
+    filePutContents(vkApiPath, value, strlen(value));
 
 done:
     if (instance) vkDestroyInstance(instance, NULL);
