@@ -1,87 +1,3 @@
-diff --git a/.github/workflows/build-coexist.yml b/.github/workflows/build-coexist.yml
-index bac414d..2218dcd 100644
---- a/.github/workflows/build-coexist.yml
-+++ b/.github/workflows/build-coexist.yml
-@@ -22,7 +22,37 @@ jobs:
-       - name: Checkout
-         uses: actions/checkout@v5
-         with:
--          lfs: false
-+          # 仓库当前未用 LFS，置 true 仅为预防：将来若有资源走 LFS，
-+          # 不会只检出指针文件导致 compressAssets 打包到坏文件
-+          lfs: true
-+          fetch-depth: 1
-+
-+      - name: 释放 runner 磁盘空间
-+        run: |
-+          echo "=== 清理前 ==="
-+          df -h /
-+          # 删除用不到的预装 NDK/系统镜像和大型工具，腾出空间给 assets 与编译
-+          sudo rm -rf /usr/local/lib/android/sdk/ndk/* 2>/dev/null || true
-+          sudo rm -rf /usr/local/lib/android/sdk/system-images/* 2>/dev/null || true
-+          sudo rm -rf /usr/share/dotnet 2>/dev/null || true
-+          sudo rm -rf /opt/ghc 2>/dev/null || true
-+          sudo rm -rf /usr/local/share/boost 2>/dev/null || true
-+          echo "=== 清理后 ==="
-+          df -h /
-+          echo "=== assets 体积 ==="
-+          du -sh app/src/main/assets 2>/dev/null || true
-+
-+      - name: 校验 assets 未被 LFS 指针污染
-+        run: |
-+          # 若某资源是未解析的 LFS 指针（小文本，含 spec/v1 标记），直接失败并指出文件
-+          bad=0
-+          while IFS= read -r -d '' file; do
-+            if head -c 200 "$file" | grep -q "git-lfs.github.com/spec/v1"; then
-+              echo "::error::未解析的 LFS 指针文件: $file"
-+              bad=1
-+            fi
-+          done < <(find app/src/main/assets -type f -print0)
-+          exit $bad
- 
-       - name: Set up JDK
-         uses: actions/setup-java@v5
-@@ -53,7 +83,9 @@ jobs:
-           chmod +x gradlew
-           APP_ID="${{ github.event.inputs.coexistAppId || 'com.winlator.coexist' }}"
-           echo "使用包名: $APP_ID"
--          ./gradlew assembleCoexistRelease --no-daemon -PcoexistAppId="$APP_ID" \
-+          # --stacktrace 让资源压缩等任务失败时输出真实异常，而不是只报任务名
-+          ./gradlew assembleCoexistRelease --no-daemon --stacktrace \
-+            -PcoexistAppId="$APP_ID" \
-             -Pandroid.injected.signing.store.file=$PWD/release.keystore \
-             -Pandroid.injected.signing.store.password=winlator123 \
-             -Pandroid.injected.signing.key.alias=winlator \
-@@ -64,6 +96,8 @@ jobs:
-           SHA=$(git rev-parse --short HEAD)
-           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-           mv app/build/outputs/apk/coexist/release/app-coexist-release.apk "WinlatorCN-coexist-${SHA}-${TIMESTAMP}.apk"
-+          echo "=== 产物信息 ==="
-+          ls -lh *.apk
- 
-       - name: Upload APK
-         uses: actions/upload-artifact@v4
-diff --git a/app/build.gradle b/app/build.gradle
-index 9f8fbff..465395b 100644
---- a/app/build.gradle
-+++ b/app/build.gradle
-@@ -50,6 +50,16 @@ android {
-         checkReleaseBuilds false
-     }
- 
-+    // .tzst 是已经用 zstd 压缩过的容器/组件包（约 200MB，占 assets 99%）。
-+    // 若交给 AGP 的 compressAssets 再用 deflate 压一遍，既压不动又会在
-+    // CI runner 上耗尽内存/磁盘导致 compressXxxReleaseAssets 失败。
-+    // 这里改为直接存储（STORED）：打包瞬间完成，APK 体积几乎不变；
-+    // 运行时由 zstd-jni/commons-compress 自行解压，不依赖 APK 压缩。
-+    // sf2（SoundFont 音频采样）同为已压缩二进制，一并排除。
-+    androidResources {
-+        noCompress 'tzst', 'sf2'
-+    }
-+
-     // 「仅编译 Java」的 CI 流程会先删掉 app/src/main/cpp，再传 -PskipNative 跳过下面这段
-     // 原生构建配置。本地构建与「含 C 编译」的 CI 流程不传该属性，行为完全不变。
-     if (!project.hasProperty('skipNative')) {
 diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
 index a17047f..ce88517 100644
 --- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
@@ -108,7 +24,7 @@ index a17047f..ce88517 100644
                  PictureInPictureParams pipParams = (new PictureInPictureParams.Builder())
                      .setAspectRatio(screenInfo.aspectRatio())
 diff --git a/app/src/main/java/com/winlator/widget/FrameRating.java b/app/src/main/java/com/winlator/widget/FrameRating.java
-index 46186f6..4676ea5 100644
+index 46186f6..fae0543 100644
 --- a/app/src/main/java/com/winlator/widget/FrameRating.java
 +++ b/app/src/main/java/com/winlator/widget/FrameRating.java
 @@ -19,6 +19,9 @@ import com.winlator.box64.Box64Utils;
@@ -121,18 +37,15 @@ index 46186f6..4676ea5 100644
  import java.util.Locale;
  
  /**
-@@ -124,6 +127,18 @@ public class FrameRating extends FrameLayout implements Runnable {
+@@ -124,6 +127,15 @@ public class FrameRating extends FrameLayout implements Runnable {
          setupPanels();
      }
  
-+    /**
-+     * 刷新 HUD 设置（从 SharedPreferences 读取）
-+     */
++    /** 按 HUD 设置对话框的勾选动态刷新显示 */
 +    public void refreshSettings() {
 +        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
 +        boolean showFps = prefs.getBoolean("hud_fps", true);
 +        boolean showFrameGraph = prefs.getBoolean("hud_frame_graph", true);
-+
 +        fpsPanel.setVisibility(showFps ? VISIBLE : GONE);
 +        frameTimeChart.setVisibility(showFrameGraph && showFps ? VISIBLE : GONE);
 +    }
@@ -142,10 +55,10 @@ index 46186f6..4676ea5 100644
      }
 diff --git a/app/src/main/java/com/winlator/widget/HudSettingsDialog.java b/app/src/main/java/com/winlator/widget/HudSettingsDialog.java
 new file mode 100644
-index 0000000..a7b7c78
+index 0000000..814bcdd
 --- /dev/null
 +++ b/app/src/main/java/com/winlator/widget/HudSettingsDialog.java
-@@ -0,0 +1,120 @@
+@@ -0,0 +1,116 @@
 +package com.winlator.widget;
 +
 +import android.app.Dialog;
@@ -165,7 +78,6 @@ index 0000000..a7b7c78
 + */
 +public class HudSettingsDialog extends Dialog {
 +
-+    // HUD 元素定义
 +    public static final String[][] ELEMENTS = {
 +        {"fps", "FPS（每秒帧数）"},
 +        {"gpu_load", "GPU 负载"},
@@ -216,14 +128,12 @@ index 0000000..a7b7c78
 +        layout.setOrientation(LinearLayout.VERTICAL);
 +        layout.setPadding(48, 32, 48, 32);
 +
-+        // 说明文字
 +        TextView desc = new TextView(context);
 +        desc.setText("勾选要显示的 HUD 元素，立即生效");
 +        desc.setTextSize(13);
 +        desc.setPadding(0, 0, 0, 24);
 +        layout.addView(desc);
 +
-+        // 生成所有开关
 +        for (String[] element : ELEMENTS) {
 +            String key = element[0];
 +            String name = element[1];
@@ -245,7 +155,6 @@ index 0000000..a7b7c78
 +        getWindow().setLayout(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
 +    }
 +
-+    // 默认启用的元素
 +    private boolean isDefaultEnabled(String key) {
 +        switch (key) {
 +            case "fps":
