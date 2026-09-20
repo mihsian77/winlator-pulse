@@ -1,0 +1,48 @@
+name: 应用补丁（用完即删）
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'patches/*.patch'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-patches:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: 配置 git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git"
+
+      - name: 应用所有补丁
+        run: |
+          shopt -s nullglob
+          patches=(patches/*.patch)
+          if [ ${#patches[@]} -eq 0 ]; then
+            echo "没有补丁文件，退出"
+            exit 0
+          fi
+          for patch in "${patches[@]}"; do
+            echo "=== 应用 $patch ==="
+            git apply --verbose "$patch" || { echo "::error::补丁 $patch 应用失败"; exit 1; }
+          done
+
+      - name: 提交修改并自删补丁与本工作流
+        run: |
+          git add -A
+          git rm -f patches/*.patch 2>/dev/null || true
+          git rm -f .github/workflows/apply-patches.yml 2>/dev/null || true
+          git commit -m "feat: HUD 设置功能并修复共存版资源压缩失败" -m "- 左划菜单新增 HUD 设置，23 项可勾选，默认启用 12 项
+- tzst/sf2 资源改为不压缩，修复 compressCoexistReleaseAssets 失败
+- 构建工作流增加磁盘清理、LFS 指针校验与 stacktrace 日志"
+          git push origin HEAD
