@@ -50,6 +50,19 @@ android {
         checkReleaseBuilds false
     }
 
+    // 资源压缩排除清单。
+    // assets 里的 .tzst（约 200MB，占 99%）本身已是 zstd 高压包，
+    // 若再让 AAPT 用 deflate 压一遍，会在 CI 上耗尽内存/磁盘，
+    // 导致 compressXxxReleaseAssets 失败。这里统一改为直接存储：
+    // 打包秒过、APK 体积几乎不变，运行时由 zstd 自行解压，不依赖 APK 压缩。
+    androidResources {
+        noCompress += [
+            'tzst', 'zst', '7z', 'bz2', 'flac', 'gz', 'iso',
+            'mp3', 'mp4', 'ogg', 'opus', 'pak', 'so',
+            'tar', 'xz', 'zip', 'sf2'
+        ]
+    }
+
     // 「仅编译 Java」的 CI 流程会先删掉 app/src/main/cpp，再传 -PskipNative 跳过下面这段
     // 原生构建配置。本地构建与「含 C 编译」的 CI 流程不传该属性，行为完全不变。
     if (!project.hasProperty('skipNative')) {
