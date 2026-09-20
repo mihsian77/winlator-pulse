@@ -1,6 +1,7 @@
 #ifndef GLADIO_DEBUG_UTILS_H
 #define GLADIO_DEBUG_UTILS_H
 
+#include <stdio.h>
 #include "gladio.h"
 #include "gl_renderer.h"
 
