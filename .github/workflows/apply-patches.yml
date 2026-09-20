@@ -27,19 +27,13 @@ jobs:
       - name: 应用补丁
         run: |
           set -e
-          # 关键：手机网页上传文本常被转成 CRLF，统一还原为 LF，否则 git apply 对不上空跑
           sed -i 's/\r$//' patches/*.patch
-          PATCH=patches/hud-settings.patch
-          echo "=== 应用 $PATCH ==="
-          git apply --verbose "$PATCH"
+          git apply --verbose patches/hud-settings.patch
 
-      - name: 提交修改并自删补丁与本工作流
+      - name: 提交并自删
         run: |
           git add -A
           git rm -f patches/*.patch 2>/dev/null || true
           git rm -f .github/workflows/apply-patches.yml 2>/dev/null || true
-          git commit -m "feat: 新增 HUD 设置面板" -m "- 左划菜单加入 HUD 设置入口
-- 新增 HudSettingsDialog，23 项性能元素可勾选
-- 默认启用 FPS/CPU/GPU/内存/温度/帧时间图等 12 项
-- 勾选后即时刷新显示"
+          git commit -m "feat: HUD设置面板 左划菜单23项元素可勾选 默认启用12项 即时生效"
           git push origin HEAD
