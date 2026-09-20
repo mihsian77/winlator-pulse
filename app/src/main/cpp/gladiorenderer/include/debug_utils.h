@@ -46,8 +46,12 @@ static inline void debugASMSource(GLenum type, char* asmSource) {
 
 static inline void writeTexImageFile(GLTexture* texture) {
     char filename[255];
-    sprintf(filename, APP_CACHE_DIR "/gl-textures/texture-%d-%d-%dx%d-%x-%x.bmp", GLTexture_getBindingId(texture->type), texture->id, texture->width, texture->height, texture->type, texture->originFormat);
-    if (!isDirectoryExists(APP_CACHE_DIR "/gl-textures")) createDirectory(APP_CACHE_DIR "/gl-textures");
+    const char* cacheDir = getAppCacheDir();
+    snprintf(filename, sizeof(filename), "%s/gl-textures/texture-%d-%d-%dx%d-%x-%x.bmp",
+        cacheDir, GLTexture_getBindingId(texture->type), texture->id, texture->width, texture->height, texture->type, texture->originFormat);
+    char glTexDir[255];
+    snprintf(glTexDir, sizeof(glTexDir), "%s/gl-textures", cacheDir);
+    if (!isDirectoryExists(glTexDir)) createDirectory(glTexDir);
     int imageSize;
     char* pixels = GLRenderer_getTexImage(currentRenderer, texture->type, 0, GL_RGBA, GL_UNSIGNED_BYTE, &imageSize);
     if (!pixels) return;
