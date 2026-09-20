@@ -72,6 +72,7 @@ import com.winlator.math.Mathf;
 import com.winlator.renderer.GLRenderer;
 import com.winlator.services.ForegroundService;
 import com.winlator.widget.FrameRating;
+import com.winlator.widget.HudSettingsDialog;
 import com.winlator.widget.InputControlsView;
 import com.winlator.widget.MagnifierView;
 import com.winlator.widget.TouchpadView;
@@ -461,6 +462,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 break;
             case R.id.menu_item_screen_effect:
                 (new ScreenEffectDialog(this)).show();
+                drawerLayout.closeDrawers();
+                break;
+            case R.id.menu_item_hud_settings:
+                (new HudSettingsDialog(this, () -> {
+                    if (frameRating != null) frameRating.refreshSettings();
+                })).show();
                 drawerLayout.closeDrawers();
                 break;
             case R.id.menu_item_pip_mode:

@@ -19,6 +19,9 @@ import com.winlator.box64.Box64Utils;
 import com.winlator.core.CPUStatus;
 import com.winlator.core.StringUtils;
 
+import android.content.SharedPreferences;
+import androidx.preference.PreferenceManager;
+
 import java.util.Locale;
 
 /**
@@ -122,6 +125,15 @@ public class FrameRating extends FrameLayout implements Runnable {
     public void setMode(Mode mode) {
         this.mode = mode;
         setupPanels();
+    }
+
+    /** 按 HUD 设置对话框的勾选动态刷新显示 */
+    public void refreshSettings() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+        boolean showFps = prefs.getBoolean("hud_fps", true);
+        boolean showFrameGraph = prefs.getBoolean("hud_frame_graph", true);
+        fpsPanel.setVisibility(showFps ? VISIBLE : GONE);
+        frameTimeChart.setVisibility(showFrameGraph && showFps ? VISIBLE : GONE);
     }
 
     public void setGPUInfo(String gpuInfo) {
