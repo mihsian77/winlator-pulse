@@ -24,25 +24,22 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git"
 
-      - name: 应用所有补丁
+      - name: 应用补丁
         run: |
-          shopt -s nullglob
-          patches=(patches/*.patch)
-          if [ ${#patches[@]} -eq 0 ]; then
-            echo "没有补丁文件，退出"
-            exit 0
-          fi
-          for patch in "${patches[@]}"; do
-            echo "=== 应用 $patch ==="
-            git apply --verbose "$patch" || { echo "::error::补丁 $patch 应用失败"; exit 1; }
-          done
+          set -e
+          # 关键：手机网页上传文本常被转成 CRLF，统一还原为 LF，否则 git apply 对不上空跑
+          sed -i 's/\r$//' patches/*.patch
+          PATCH=patches/hud-settings.patch
+          echo "=== 应用 $PATCH ==="
+          git apply --verbose "$PATCH"
 
       - name: 提交修改并自删补丁与本工作流
         run: |
           git add -A
           git rm -f patches/*.patch 2>/dev/null || true
           git rm -f .github/workflows/apply-patches.yml 2>/dev/null || true
-          git commit -m "feat: HUD 设置功能并修复共存版资源压缩失败" -m "- 左划菜单新增 HUD 设置，23 项可勾选，默认启用 12 项
-- tzst/sf2 资源改为不压缩，修复 compressCoexistReleaseAssets 失败
-- 构建工作流增加磁盘清理、LFS 指针校验与 stacktrace 日志"
+          git commit -m "feat: 新增 HUD 设置面板" -m "- 左划菜单加入 HUD 设置入口
+- 新增 HudSettingsDialog，23 项性能元素可勾选
+- 默认启用 FPS/CPU/GPU/内存/温度/帧时间图等 12 项
+- 勾选后即时刷新显示"
           git push origin HEAD
