@@ -1,3 +1,87 @@
+diff --git a/.github/workflows/build-coexist.yml b/.github/workflows/build-coexist.yml
+index bac414d..2218dcd 100644
+--- a/.github/workflows/build-coexist.yml
++++ b/.github/workflows/build-coexist.yml
+@@ -22,7 +22,37 @@ jobs:
+       - name: Checkout
+         uses: actions/checkout@v5
+         with:
+-          lfs: false
++          # 仓库当前未用 LFS，置 true 仅为预防：将来若有资源走 LFS，
++          # 不会只检出指针文件导致 compressAssets 打包到坏文件
++          lfs: true
++          fetch-depth: 1
++
++      - name: 释放 runner 磁盘空间
++        run: |
++          echo "=== 清理前 ==="
++          df -h /
++          # 删除用不到的预装 NDK/系统镜像和大型工具，腾出空间给 assets 与编译
++          sudo rm -rf /usr/local/lib/android/sdk/ndk/* 2>/dev/null || true
++          sudo rm -rf /usr/local/lib/android/sdk/system-images/* 2>/dev/null || true
++          sudo rm -rf /usr/share/dotnet 2>/dev/null || true
++          sudo rm -rf /opt/ghc 2>/dev/null || true
++          sudo rm -rf /usr/local/share/boost 2>/dev/null || true
++          echo "=== 清理后 ==="
++          df -h /
++          echo "=== assets 体积 ==="
++          du -sh app/src/main/assets 2>/dev/null || true
++
++      - name: 校验 assets 未被 LFS 指针污染
++        run: |
++          # 若某资源是未解析的 LFS 指针（小文本，含 spec/v1 标记），直接失败并指出文件
++          bad=0
++          while IFS= read -r -d '' file; do
++            if head -c 200 "$file" | grep -q "git-lfs.github.com/spec/v1"; then
++              echo "::error::未解析的 LFS 指针文件: $file"
++              bad=1
++            fi
++          done < <(find app/src/main/assets -type f -print0)
++          exit $bad
+ 
+       - name: Set up JDK
+         uses: actions/setup-java@v5
+@@ -53,7 +83,9 @@ jobs:
+           chmod +x gradlew
+           APP_ID="${{ github.event.inputs.coexistAppId || 'com.winlator.coexist' }}"
+           echo "使用包名: $APP_ID"
+-          ./gradlew assembleCoexistRelease --no-daemon -PcoexistAppId="$APP_ID" \
++          # --stacktrace 让资源压缩等任务失败时输出真实异常，而不是只报任务名
++          ./gradlew assembleCoexistRelease --no-daemon --stacktrace \
++            -PcoexistAppId="$APP_ID" \
+             -Pandroid.injected.signing.store.file=$PWD/release.keystore \
+             -Pandroid.injected.signing.store.password=winlator123 \
+             -Pandroid.injected.signing.key.alias=winlator \
+@@ -64,6 +96,8 @@ jobs:
+           SHA=$(git rev-parse --short HEAD)
+           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+           mv app/build/outputs/apk/coexist/release/app-coexist-release.apk "WinlatorCN-coexist-${SHA}-${TIMESTAMP}.apk"
++          echo "=== 产物信息 ==="
++          ls -lh *.apk
+ 
+       - name: Upload APK
+         uses: actions/upload-artifact@v4
+diff --git a/app/build.gradle b/app/build.gradle
+index 9f8fbff..465395b 100644
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -50,6 +50,16 @@ android {
+         checkReleaseBuilds false
+     }
+ 
++    // .tzst 是已经用 zstd 压缩过的容器/组件包（约 200MB，占 assets 99%）。
++    // 若交给 AGP 的 compressAssets 再用 deflate 压一遍，既压不动又会在
++    // CI runner 上耗尽内存/磁盘导致 compressXxxReleaseAssets 失败。
++    // 这里改为直接存储（STORED）：打包瞬间完成，APK 体积几乎不变；
++    // 运行时由 zstd-jni/commons-compress 自行解压，不依赖 APK 压缩。
++    // sf2（SoundFont 音频采样）同为已压缩二进制，一并排除。
++    androidResources {
++        noCompress 'tzst', 'sf2'
++    }
++
+     // 「仅编译 Java」的 CI 流程会先删掉 app/src/main/cpp，再传 -PskipNative 跳过下面这段
+     // 原生构建配置。本地构建与「含 C 编译」的 CI 流程不传该属性，行为完全不变。
+     if (!project.hasProperty('skipNative')) {
 diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
 index a17047f..ce88517 100644
 --- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
@@ -194,4 +278,3 @@ index a471d4a..5187536 100644
          <item android:icon="@drawable/icon_pip_mode" android:id="@+id/menu_item_pip_mode" android:title="@string/pip_mode" />
          <item android:icon="@drawable/icon_debug" android:id="@+id/menu_item_logs" android:title="@string/logs" />
          <item android:icon="@drawable/icon_debug" android:id="@+id/menu_item_fix_perms" android:title="@string/fix_perms" />
-
