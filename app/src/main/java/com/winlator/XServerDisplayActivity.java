@@ -587,6 +587,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         envVars.put("MESA_NO_ERROR", "1");
         envVars.put("WINEPREFIX", rootPath+RootFS.WINEPREFIX);
         envVars.put("WINE_DO_NOT_CREATE_DXGI_DEVICE_MANAGER", "1");
+        // 把 cache 目录传给 native，避免硬编码路径导致共存版写错位置
+        envVars.put("APP_CACHE_DIR", getCacheDir().getAbsolutePath());
 
         boolean enableWineDebug = preferences.getBoolean("enable_wine_debug", false);
         String wineDebugChannels = preferences.getString("wine_debug_channels", SettingsFragment.DEFAULT_WINE_DEBUG_CHANNELS);
