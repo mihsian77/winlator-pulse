@@ -1,3 +1,5 @@
+#include <limits.h>
+#include <stdio.h>
 #include "shader_inspector.h"
 #include "vulkan_helper.h"
 #include "spirv.h"
