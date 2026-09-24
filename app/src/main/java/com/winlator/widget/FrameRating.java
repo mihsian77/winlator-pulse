@@ -91,8 +91,10 @@ public class FrameRating extends FrameLayout {
 
     /**
      * 每帧调用，记录帧时间用于 FPS 计算。
+     * 上游逻辑：窗口内容更新时自动显示 HUD（changeFrameRatingVisibility 只设 windowId，不设可见性）。
      */
     public void update() {
         hud.onFrame();
+        if (getVisibility() != VISIBLE) setVisibility(VISIBLE);
     }
 }
