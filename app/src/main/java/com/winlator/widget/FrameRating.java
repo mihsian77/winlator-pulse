@@ -84,20 +84,25 @@ public class FrameRating extends FrameLayout {
 
     /**
      * 重置 FPS 统计（1% low / 0.1% low / 帧时间图）。
-     * 上游在 changeFrameRatingVisibility 找到游戏窗口后调用此方法，
-     * 此时立即显示 HUD（不要等第一次 update()，避免加载慢）。
+     * 上游在 changeFrameRatingVisibility（渲染线程）找到游戏窗口后调用此方法。
+     * 可见性操作必须 post 到 UI 线程，否则在渲染线程操作 View 会导致 SurfaceView 黑屏。
      */
     public void reset() {
         hud.resetStats();
-        if (getVisibility() != VISIBLE) setVisibility(VISIBLE);
+        post(() -> {
+            if (getVisibility() != VISIBLE) setVisibility(VISIBLE);
+        });
     }
 
     /**
      * 每帧调用，记录帧时间用于 FPS 计算。
-     * 上游逻辑：窗口内容更新时自动显示 HUD（changeFrameRatingVisibility 只设 windowId，不设可见性）。
+     * onUpdateWindowContent 在渲染线程调用，可见性操作必须 post 到 UI 线程。
      */
     public void update() {
         hud.onFrame();
-        if (getVisibility() != VISIBLE) setVisibility(VISIBLE);
+        post(() -> {
+            if (getVisibility() != VISIBLE) setVisibility(VISIBLE);
+        });
     }
+}
 }
