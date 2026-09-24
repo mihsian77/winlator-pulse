@@ -84,9 +84,12 @@ public class FrameRating extends FrameLayout {
 
     /**
      * 重置 FPS 统计（1% low / 0.1% low / 帧时间图）。
+     * 上游在 changeFrameRatingVisibility 找到游戏窗口后调用此方法，
+     * 此时立即显示 HUD（不要等第一次 update()，避免加载慢）。
      */
     public void reset() {
         hud.resetStats();
+        if (getVisibility() != VISIBLE) setVisibility(VISIBLE);
     }
 
     /**
