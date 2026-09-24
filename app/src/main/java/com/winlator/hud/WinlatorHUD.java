@@ -123,7 +123,7 @@ public class WinlatorHUD extends View {
 
     // ==================== 尺寸常量 ====================
     private static final float BASE_TEXT_DP = 14f;
-    private static final long TICK_MS = 500L;
+    private static final long TICK_MS = 1000L;
     private static final int GRAPH_SAMPLES = 200;
     private static final float GRAPH_CEIL_MS = 50f;
     private static final long STALE_FPS_NS = 1_500_000_000L; // 1.5s 无帧→0
@@ -359,7 +359,7 @@ public class WinlatorHUD extends View {
 
         setLayoutParams(new ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        setElevation(1000f);
+        // 不设置 elevation，避免频繁重绘时触发持续合成开销导致卡顿
         applyScale();
         applyAlphas();
         computeLayout();
@@ -764,8 +764,6 @@ public class WinlatorHUD extends View {
 
     private float drawLabel(Canvas canvas, String text, int color, float rowTop) {
         float y = rowTop + baseline;
-        outlinePaint.setTextSize(textSize);
-        canvas.drawText(text, pad, y, outlinePaint);
         labelPaint.setColor(color);
         canvas.drawText(text, pad, y, labelPaint);
         return pad + labelColW;
@@ -783,8 +781,6 @@ public class WinlatorHUD extends View {
     private float drawCellText(Canvas canvas, String text, String unit, float x, float rowTop, int valueChars) {
         float y = rowTop + baseline;
         float vx = x + charW * valueChars - text.length() * charW;
-        outlinePaint.setTextSize(textSize);
-        canvas.drawText(text, vx, y, outlinePaint);
         canvas.drawText(text, vx, y, valuePaint);
         float ux = x + charW * valueChars + smallCharW * 0.1f;
         drawSmall(canvas, unit, ux, y, C_TEXT);
@@ -792,8 +788,6 @@ public class WinlatorHUD extends View {
     }
 
     private void drawSmall(Canvas canvas, String text, float x, float y, int color) {
-        outlinePaint.setTextSize(smallSize);
-        canvas.drawText(text, x, y, outlinePaint);
         smallPaint.setColor(color);
         canvas.drawText(text, x, y, smallPaint);
     }
