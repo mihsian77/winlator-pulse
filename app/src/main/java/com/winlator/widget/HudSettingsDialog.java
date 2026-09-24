@@ -19,28 +19,11 @@ public class HudSettingsDialog extends Dialog {
 
     public static final String[][] ELEMENTS = {
         {"fps", "FPS（每秒帧数）"},
-        {"gpu_load", "GPU 负载"},
-        {"cpu_load", "CPU 负载"},
-        {"ram", "内存使用"},
-        {"battery", "电池电量"},
-        {"gpu_temp", "GPU 温度"},
-        {"cpu_temp", "CPU 温度"},
         {"frame_graph", "帧时间图"},
-        {"engine", "渲染引擎"},
-        {"box64_version", "Box64 版本"},
-        {"dxvk_version", "DXVK 版本"},
-        {"driver_version", "驱动版本"},
-        {"vram", "显存使用"},
-        {"cpu_mhz", "CPU 频率"},
-        {"gpu_clock", "GPU 频率"},
-        {"cpu_cores", "CPU 核心"},
-        {"network", "网络速度"},
-        {"swap", "Swap 分区"},
-        {"resolution", "分辨率"},
-        {"wine_version", "Wine 版本"},
-        {"duration", "运行时长"},
-        {"clock", "当前时间"},
-        {"throttle", "降频状态"}
+        {"engine", "GPU 信息与渲染引擎"},
+        {"ram", "内存使用"},
+        {"cpu_load", "CPU 频率与 Box64 版本"},
+        {"battery", "温度"}
     };
 
     private final OnSettingsChangedListener listener;
@@ -97,17 +80,11 @@ public class HudSettingsDialog extends Dialog {
     private boolean isDefaultEnabled(String key) {
         switch (key) {
             case "fps":
-            case "gpu_load":
-            case "cpu_load":
-            case "ram":
-            case "battery":
-            case "gpu_temp":
-            case "cpu_temp":
             case "frame_graph":
             case "engine":
-            case "box64_version":
-            case "dxvk_version":
-            case "driver_version":
+            case "ram":
+            case "cpu_load":
+            case "battery":
                 return true;
             default:
                 return false;
