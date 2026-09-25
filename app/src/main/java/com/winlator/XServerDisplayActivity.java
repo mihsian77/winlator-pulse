@@ -298,7 +298,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         super.onWindowFocusChanged(hasFocus);
 
         if (hasFocus) {
-            if (capturePointerOnExternalMouse) touchpadView.requestPointerCapture();
+            if (capturePointerOnExternalMouse) {
+                // Captured events are delivered to the focused view.
+                View captureView = inputControlsView.getVisibility() == View.VISIBLE ? inputControlsView : touchpadView;
+                if (captureView.requestFocus()) captureView.requestPointerCapture();
+            }
 
             if (winHandler != null && clipboardManager != null && clipboardManager.hasPrimaryClip()) {
                 ClipData primaryClip = clipboardManager.getPrimaryClip();
@@ -600,6 +604,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         inputControlsView = new InputControlsView(this);
         inputControlsView.setOverlayOpacity(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
         inputControlsView.setTouchpadView(touchpadView);
+        if (capturePointerOnExternalMouse) {
+            inputControlsView.setOnCapturedPointerListener((view, event) ->
+                touchpadView.isEnabled() && touchpadView.onCapturedPointer(view, event));
+        }
         inputControlsView.setXServer(xServer);
         inputControlsView.setVisibility(View.GONE);
         rootView.addView(inputControlsView);
