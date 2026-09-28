@@ -6,11 +6,11 @@
 
 在 Android 上运行 Windows 程序的容器，聚焦**多版本共存**与**性能监控**。
 
-[![Build](https://github.com/hao728/winlator-pulse/actions/workflows/build-coexist.yml/badge.svg)](https://github.com/hao728/winlator-pulse/actions/workflows/build-coexist.yml)
+[![Build](https://github.com/mihsian77/winlator-pulse/actions/workflows/build-coexist.yml/badge.svg)](https://github.com/mihsian77/winlator-pulse/actions/workflows/build-coexist.yml)
 [![Platform](https://img.shields.io/badge/Android-arm64--v8a-brightgreen)]()
 [![License](https://img.shields.io/badge/License-GPL--3.0-blue)]()
 
-[下载 APK](../../releases) · [上游](https://github.com/hostei33/winlator-cn) · [RootFS 构建](https://github.com/hao728/bfm-zh)
+[下载 APK](../../releases) · [上游](https://github.com/hostei33/winlator-cn) · [RootFS 构建](https://github.com/mihsian77/bfm-zh)
 
 </div>
 
