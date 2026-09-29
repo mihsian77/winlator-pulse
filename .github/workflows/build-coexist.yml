@@ -1,4 +1,4 @@
-name: 构建共存版 Release
+name: 构建 Release
 
 on:
   push:
@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       coexistAppId:
-        description: '共存版包名（留空用默认 com.winlator.coexist）'
+        description: '共存版包名（留空用默认 com.winlator.pulse）'
         required: false
-        default: 'com.winlator.coexist'
+        default: 'com.winlator.pulse'
 
 env:
   JAVA_VERSION: '17'
@@ -46,29 +46,39 @@ jobs:
             -alias winlator \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass winlator123 -keypass winlator123 \
-            -dname "CN=WinlatorCN, OU=Dev, O=WinlatorCN, L=CN, ST=CN, C=CN"
+            -dname "CN=WinlatorPulse, OU=Dev, O=WinlatorPulse, L=CN, ST=CN, C=CN"
 
-      - name: Build coexist APK
+      - name: Build standard APK（覆盖原版安装）
         run: |
           chmod +x gradlew
-          APP_ID="${{ github.event.inputs.coexistAppId || 'com.winlator.coexist' }}"
-          echo "使用包名: $APP_ID"
+          ./gradlew assembleStandardRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=$PWD/release.keystore \
+            -Pandroid.injected.signing.store.password=winlator123 \
+            -Pandroid.injected.signing.key.alias=winlator \
+            -Pandroid.injected.signing.key.password=winlator123
+
+      - name: Build coexist APK（与原版共存）
+        run: |
+          APP_ID="${{ github.event.inputs.coexistAppId || 'com.winlator.pulse' }}"
+          echo "共存版包名: $APP_ID"
           ./gradlew assembleCoexistRelease --no-daemon -PcoexistAppId="$APP_ID" \
             -Pandroid.injected.signing.store.file=$PWD/release.keystore \
             -Pandroid.injected.signing.store.password=winlator123 \
             -Pandroid.injected.signing.key.alias=winlator \
             -Pandroid.injected.signing.key.password=winlator123
 
-      - name: Rename APK
+      - name: Rename APKs
         run: |
-          SHA=$(git rev-parse --short HEAD)
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          mv app/build/outputs/apk/coexist/release/app-coexist-release.apk "WinlatorCN-coexist-${SHA}-${TIMESTAMP}.apk"
+          VERSION=$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' app/build.gradle)
+          echo "版本号: $VERSION"
+          mv app/build/outputs/apk/standard/release/app-standard-release.apk "Winlator-Pulse-standard-${VERSION}-arm64.apk"
+          mv app/build/outputs/apk/coexist/release/app-coexist-release.apk "Winlator-Pulse-coexist-${VERSION}-arm64.apk"
+          ls -lh *.apk
 
-      - name: Upload APK
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: winlator-coexist-apk
+          name: winlator-pulse-apks
           path: "*.apk"
           retention-days: 30
 
