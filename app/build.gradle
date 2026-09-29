@@ -22,7 +22,7 @@ android {
         }
         coexist {
             dimension "coexist"
-            applicationId project.hasProperty('coexistAppId') ? project.coexistAppId : 'com.winlator.coexist'
+            applicationId project.hasProperty('coexistAppId') ? project.coexistAppId : 'com.winlator.pulse'
         }
     }
 
