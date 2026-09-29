@@ -97,6 +97,11 @@ public class MainApplication extends Application {
 
     private static native void installNativeCrashHandler(String logFilePath);
 
+    // 共存版：把实际缓存目录传入 native 层，写入 APP_CACHE_DIR 环境变量。
+    // native 层 winlator.h 的 getAppCacheDir() 据此获取路径，避免硬编码
+    // /data/data/com.winlator/cache 导致共存版 Vulkan API 版本缓存、纹理缓存写错目录。
+    private static native void setAppCacheDir(String path);
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -113,6 +118,9 @@ public class MainApplication extends Application {
         }
         // 先注入实际包名：容器默认 E: 盘路径按包名拼接，MT 改包共存后不能再用 com.winlator 的硬编码路径
         AppUtils.init(this);
+        // native 层缓存目录动态化：把实际 cache 路径传入 native 层，
+        // 上游硬编码 /data/data/com.winlator/cache，共存版会写错目录。
+        setAppCacheDir(getCacheDir().getAbsolutePath());
         // MT 改包共存后 getPackageName() 为新包名，PatchUtils 据此决定是否替换解压产物中的宿主路径
         // (包名仍为原包名 com.winlator 时不启用，原版 APK 行为完全不变)
         File dataDir = getDataDir();

@@ -1,6 +1,19 @@
 #include <jni.h>
+#include <stdlib.h>
 
 #include "winlator.h"
+
+// 共存版：由 Java 层传入实际缓存目录，写入 APP_CACHE_DIR 环境变量。
+// native 层 getAppCacheDir() 据此获取路径，避免硬编码 /data/data/com.winlator/cache
+// 导致共存版 Vulkan API 版本缓存、纹理缓存等写到错误目录。
+void JNICALL Java_com_winlator_MainApplication_setAppCacheDir(JNIEnv* env, jclass cls, jstring path) {
+    if (path == NULL) return;
+    const char* dir = (*env)->GetStringUTFChars(env, path, NULL);
+    if (dir != NULL) {
+        setenv("APP_CACHE_DIR", dir, 1);
+        (*env)->ReleaseStringUTFChars(env, path, dir);
+    }
+}
 
 // The @CriticalNative methods below are implemented with the critical native ABI (no JNIEnv*/jclass
 // parameters). The built-in dynamic JNI linking only resolves them on Android 12+; on Android 8-11
@@ -24,9 +37,13 @@ extern void JNICALL Java_com_winlator_xconnector_XOutputStream_setAncillaryFd(jl
 extern void JNICALL Java_com_winlator_xconnector_XOutputStream_writeByte(jlong nativePtr, jbyte value);
 extern void JNICALL Java_com_winlator_xconnector_XOutputStream_writeShort(jlong nativePtr, jshort value);
 extern void JNICALL Java_com_winlator_xconnector_XOutputStream_writeInt(jlong nativePtr, jint value);
-extern void JNICALL Java_com_winlator_xconnector_XOutputStream_writeLong(jlong nativePtr, jlong value);
+extern jlong JNICALL Java_com_winlator_xconnector_XOutputStream_writeLong(jlong nativePtr, jlong value);
 extern void JNICALL Java_com_winlator_xconnector_XOutputStream_writePad(jlong nativePtr, jint length);
 extern jint JNICALL Java_com_winlator_xconnector_XOutputStream_length(jlong nativePtr);
+
+static const JNINativeMethod MAIN_APPLICATION_METHODS[] = {
+    {"setAppCacheDir", "(Ljava/lang/String;)V", (void*)Java_com_winlator_MainApplication_setAppCacheDir},
+};
 
 static const JNINativeMethod GPU_HELPER_METHODS[] = {
     {"vkGetApiVersion", "()I", (void*)Java_com_winlator_core_GPUHelper_vkGetApiVersion},
@@ -71,6 +88,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     JNIEnv* env;
     if ((*vm)->GetEnv(vm, (void**)&env, JNI_VERSION_1_6) != JNI_OK) return JNI_ERR;
 
+    if (!registerCriticalNatives(env, "com/winlator/MainApplication", MAIN_APPLICATION_METHODS, ARRAY_SIZE(MAIN_APPLICATION_METHODS))) return JNI_ERR;
     if (!registerCriticalNatives(env, "com/winlator/core/GPUHelper", GPU_HELPER_METHODS, ARRAY_SIZE(GPU_HELPER_METHODS))) return JNI_ERR;
     if (!registerCriticalNatives(env, "com/winlator/xconnector/XConnectorEpoll", XCONNECTOR_EPOLL_METHODS, ARRAY_SIZE(XCONNECTOR_EPOLL_METHODS))) return JNI_ERR;
     if (!registerCriticalNatives(env, "com/winlator/xconnector/XInputStream", XINPUT_STREAM_METHODS, ARRAY_SIZE(XINPUT_STREAM_METHODS))) return JNI_ERR;
