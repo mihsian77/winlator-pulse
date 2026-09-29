@@ -253,7 +253,7 @@ public abstract class FileUtils {
     }
 
     public static String getBasename(String path) {
-        return getName(path).replaceFirst("\\.[^\\.]+$", "");
+        return getName(path).replaceFirst("\\.[^\\.]+", "");
     }
 
     public static String getDirname(String path) {
@@ -429,7 +429,8 @@ public abstract class FileUtils {
         Intent intent;
         if (path.startsWith("file://")) {
             File file = new File(Uri.decode(path.replace("file://", "")));
-            intent = new Intent(Intent.ACTION_VIEW, FileProvider.getUriForFile(activity, "com.winlator.FileProvider", file));
+            // 共存版修复：FileProvider authorities 跟随 ${applicationId}，不能硬编码 com.winlator
+            intent = new Intent(Intent.ACTION_VIEW, FileProvider.getUriForFile(activity, activity.getPackageName() + ".FileProvider", file));
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         }
         else intent = new Intent(Intent.ACTION_VIEW, Uri.parse(path));
