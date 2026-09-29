@@ -70,11 +70,24 @@ jobs:
 
           git checkout -B "$BRANCH" origin/main
 
+          # 共存定制文件保护名单：同步上游时强制保留本仓库版本
+          # 原则：仅保护经核实的共存/HUD/CI 定制文件，上游通用文件跟随上游
           OURS_FILES=(
             "README.md"
+            "gradle.properties"
             "app/build.gradle"
             "app/src/main/AndroidManifest.xml"
+            "app/src/main/cpp/CMakeLists.txt"
+            "app/src/main/java/com/winlator/MainApplication.java"
+            "app/src/main/java/com/winlator/core/AppUtils.java"
+            "app/src/main/java/com/winlator/core/PatchUtils.java"
+            "app/src/main/java/com/winlator/core/FileUtils.java"
             "app/src/main/java/com/winlator/widget/FrameRating.java"
+            "app/src/main/java/com/winlator/widget/HudSettingsDialog.java"
+            "app/src/main/java/com/winlator/hud/WinlatorHUD.java"
+            ".github/workflows/android-ci.yml"
+            ".github/workflows/build-coexist.yml"
+            ".github/workflows/sync-upstream.yml"
           )
 
           is_ours() {
@@ -90,10 +103,10 @@ jobs:
             git diff --name-only --diff-filter=U | while read f; do
               if git ls-files -u "$f" | awk '{print $3}' | grep -q '^3$'; then
                 if is_ours "$f"; then
-                  echo "🛡 保留我们的版本: $f"
+                  echo "保留我们的版本: $f"
                   git checkout --ours "$f"
                 else
-                  echo "⬆ 采用上游新版: $f"
+                  echo "采用上游新版: $f"
                   git checkout --theirs "$f"
                 fi
               else
