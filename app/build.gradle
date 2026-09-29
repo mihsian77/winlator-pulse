@@ -28,9 +28,9 @@ android {
 
     buildTypes {
         debug {
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-
+            // debug 构建不混淆：AGP 8.x 对 debuggable 构建自动禁用混淆，
+            // 开 minifyEnabled 只会白跑一遍 ProGuard，拖慢本地和 CI 调试构建。
+            minifyEnabled false
             ndk {
                 abiFilters 'arm64-v8a'
             }

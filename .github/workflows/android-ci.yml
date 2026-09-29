@@ -1,4 +1,4 @@
-name: 编译apk（仅编译java）
+name: 编译验证（仅Java）
 
 on:
   push:
