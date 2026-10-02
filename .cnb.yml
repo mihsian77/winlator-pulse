@@ -1,0 +1,40 @@
+main:
+  push:
+    - name: build-apk
+      docker:
+        build:
+          dockerfile: .ci/Dockerfile
+      stages:
+        - name: remove-assets
+          # 配合下面 build-release-apk 的 -PskipNative：本流程不编译任何 C/C++。
+          # 删掉 cpp 还能在 -PskipNative 万一被漏掉时立刻构建失败，
+          # 而不是悄悄退回去做一次完整的原生编译。
+          script: |
+            rm -rf app/src/main/assets
+            rm -rf app/src/main/cpp
+
+        - name: create-debug-keystore
+          script: |
+            keytool -genkey -v -keystore debug.keystore \
+              -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass android -keypass android \
+              -dname "CN=Debug, OU=Debug, O=Debug, L=Debug, ST=Debug, C=US"
+
+        - name: build-release-apk
+          timeout: 30m
+          script: |
+            chmod +x gradlew
+            ./gradlew assembleRelease --no-daemon -PskipNative \
+              -Pandroid.injected.signing.store.file=$PWD/debug.keystore \
+              -Pandroid.injected.signing.store.password=android \
+              -Pandroid.injected.signing.key.alias=androiddebugkey \
+              -Pandroid.injected.signing.key.password=android
+
+        - name: rename-apk
+          script: |
+            BRANCH=$(echo "$CNB_BRANCH" | sed 's|/|-|g')
+            SHA=$CNB_COMMIT_SHORT
+            TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+            mv app/build/outputs/apk/release/app-release.apk "Winlator-${BRANCH}-${SHA}-${TIMESTAMP}.apk"
+            ls -lh *.apk
