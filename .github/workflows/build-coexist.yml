@@ -1,0 +1,94 @@
+name: 构建 Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      coexistAppId:
+        description: '共存版包名（留空用默认 com.winlator.pulse）'
+        required: false
+        default: 'com.winlator.pulse'
+
+env:
+  JAVA_VERSION: '17'
+  NDK_VERSION: '24.0.8215888'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - name: Install NDK and CMake
+        run: |
+          sdkmanager --install "ndk;${{ env.NDK_VERSION }}" "cmake;3.22.1"
+
+      - name: Create release keystore
+        run: |
+          keytool -genkey -v -keystore release.keystore \
+            -alias winlator \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass winlator123 -keypass winlator123 \
+            -dname "CN=WinlatorPulse, OU=Dev, O=WinlatorPulse, L=CN, ST=CN, C=CN"
+
+      - name: Build standard APK（覆盖原版安装）
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleStandardRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=$PWD/release.keystore \
+            -Pandroid.injected.signing.store.password=winlator123 \
+            -Pandroid.injected.signing.key.alias=winlator \
+            -Pandroid.injected.signing.key.password=winlator123
+
+      - name: Build coexist APK（与原版共存）
+        run: |
+          APP_ID="${{ github.event.inputs.coexistAppId || 'com.winlator.pulse' }}"
+          echo "共存版包名: $APP_ID"
+          ./gradlew assembleCoexistRelease --no-daemon -PcoexistAppId="$APP_ID" \
+            -Pandroid.injected.signing.store.file=$PWD/release.keystore \
+            -Pandroid.injected.signing.store.password=winlator123 \
+            -Pandroid.injected.signing.key.alias=winlator \
+            -Pandroid.injected.signing.key.password=winlator123
+
+      - name: Rename APKs
+        run: |
+          VERSION=$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' app/build.gradle)
+          echo "版本号: $VERSION"
+          mv app/build/outputs/apk/standard/release/app-standard-release.apk "Winlator-Pulse-standard-${VERSION}-arm64.apk"
+          mv app/build/outputs/apk/coexist/release/app-coexist-release.apk "Winlator-Pulse-coexist-${VERSION}-arm64.apk"
+          ls -lh *.apk
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: winlator-pulse-apks
+          path: "*.apk"
+          retention-days: 30
+
+      - name: Release on tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.apk"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

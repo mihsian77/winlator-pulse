@@ -1,0 +1,80 @@
+name: 编译验证（仅Java）
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '17'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: false # 彻底禁止下载任何LFS文件
+          fetch-depth: 1 # 只拉取最新一次提交
+
+      - name: Remove assets
+        run: rm -rf app/src/main/assets
+
+      - name: Remove native sources
+        # 配合下面 assembleRelease 的 -PskipNative：本流程不编译任何 C/C++。
+        # 删掉 cpp 还能在 -PskipNative 万一被漏掉时立刻构建失败，
+        # 而不是悄悄退回去做一次完整的原生编译。
+        run: rm -rf app/src/main/cpp
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+      
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          # 不能用该 action 的默认值 "tools platform-tools"：Google 已将遗留的
+          # tools(Android SDK Tools) 包从 SDK 仓库下架，sdkmanager tools 会报
+          # "Failed to find package 'tools'" 并让本步骤以退出码 1 失败，
+          # 整个 job 在 Gradle 启动前就中止。
+          # 已核对 v4 的 action.yml：packages 默认值仍是 "tools platform-tools"
+          # (v3 -> v4 只改了 node20 -> node24 与 cmdline-tools 默认版本号)，
+          # 所以升级之后这条覆盖依然必须保留。
+          packages: platform-tools
+
+      - name: Create debug keystore
+        run: |
+          keytool -genkey -v -keystore debug.keystore \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Debug, OU=Debug, O=Debug, L=Debug, ST=Debug, C=US"
+      
+      - name: Build release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleStandardRelease --no-daemon -PskipNative \
+            -Pandroid.injected.signing.store.file=$PWD/debug.keystore \
+            -Pandroid.injected.signing.store.password=android \
+            -Pandroid.injected.signing.key.alias=androiddebugkey \
+            -Pandroid.injected.signing.key.password=android
+      
+      - name: Rename APK
+        run: |
+          BRANCH=${GITHUB_REF#refs/heads/}
+          BRANCH=${BRANCH//\//-}
+          SHA=$(git rev-parse --short HEAD)
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          mv app/build/outputs/apk/standard/release/app-standard-release.apk "Winlator-${BRANCH}-${SHA}-${TIMESTAMP}.apk"
+      
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: "*.apk"
+          retention-days: 7
