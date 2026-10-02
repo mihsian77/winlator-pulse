@@ -142,6 +142,13 @@ public class ContainerDetailFragment extends Fragment {
 
         loadScreenSizeSpinner(view, isEditMode() ? container.getScreenSize() : Container.DEFAULT_SCREEN_SIZE);
         loadRefreshRateSpinner(view, isEditMode() ? container.getRefreshRate() : Container.DEFAULT_REFRESH_RATE);
+        // 强制全屏拉伸
+        final CheckBox cbForceFullscreen = view.findViewById(R.id.CBForceFullscreen);
+        cbForceFullscreen.setChecked(isEditMode() ? container.isFullscreenStretched() : Container.DEFAULT_FULLSCREEN_STRETCHED);
+        view.findViewById(R.id.BTForceFullscreenHelp).setOnClickListener((v) -> AppUtils.showHelpBox(context, v, R.string.force_fullscreen_help));
+        // 容器语言和时区
+        loadLcAllSpinner(view, isEditMode() ? container.getLcAll() : Container.DEFAULT_LC_ALL);
+        loadTimezoneSpinner(view, isEditMode() ? container.getTimezone() : Container.DEFAULT_TIMEZONE);
         loadScreenOrientationSpinner(view, isEditMode() ? container.getScreenOrientation() : Container.DEFAULT_SCREEN_ORIENTATION);
         final CheckBox cbSwapResolution = view.findViewById(R.id.CBSwapResolution);
         cbSwapResolution.setChecked(isEditMode() ? container.isSwapResolution() : Container.DEFAULT_SWAP_RESOLUTION);
@@ -228,6 +235,9 @@ public class ContainerDetailFragment extends Fragment {
                     container.setScreenOrientation(getScreenOrientation(view));
                     container.setSwapResolution(isSwapResolution(view));
                     container.setRefreshRate(getRefreshRate(view));
+                    container.setFullscreenStretched(((CheckBox)view.findViewById(R.id.CBForceFullscreen)).isChecked());
+                    container.setLcAll(getLcAll(view));
+                    container.setTimezone(getTimezone(view));
                     container.setEnvVars(envVars);
                     container.setCPUList(cpuList);
                     container.setCPUListWoW64(cpuListWoW64);
@@ -501,6 +511,46 @@ public class ContainerDetailFragment extends Fragment {
             }
         }
         sRefreshRate.setSelection(0); // 默认自动识别
+    }
+
+    // 容器语言（LC_ALL）：从下拉栏获取实际值
+    public static String getLcAll(View view) {
+        Spinner sLcAll = view.findViewById(R.id.SLcAll);
+        String[] values = view.getResources().getStringArray(R.array.lc_all_values);
+        int position = sLcAll.getSelectedItemPosition();
+        return position < values.length ? values[position] : Container.DEFAULT_LC_ALL;
+    }
+
+    public static void loadLcAllSpinner(View view, String selectedValue) {
+        Spinner sLcAll = view.findViewById(R.id.SLcAll);
+        String[] values = view.getResources().getStringArray(R.array.lc_all_values);
+        for (int i = 0; i < values.length; i++) {
+            if (values[i].equals(selectedValue)) {
+                sLcAll.setSelection(i);
+                return;
+            }
+        }
+        sLcAll.setSelection(0); // 默认简体中文
+    }
+
+    // 容器时区（TZ）：从下拉栏获取实际值
+    public static String getTimezone(View view) {
+        Spinner sTimezone = view.findViewById(R.id.STimezone);
+        String[] values = view.getResources().getStringArray(R.array.timezone_values);
+        int position = sTimezone.getSelectedItemPosition();
+        return position < values.length ? values[position] : Container.DEFAULT_TIMEZONE;
+    }
+
+    public static void loadTimezoneSpinner(View view, String selectedValue) {
+        Spinner sTimezone = view.findViewById(R.id.STimezone);
+        String[] values = view.getResources().getStringArray(R.array.timezone_values);
+        for (int i = 0; i < values.length; i++) {
+            if (values[i].equals(selectedValue)) {
+                sTimezone.setSelection(i);
+                return;
+            }
+        }
+        sTimezone.setSelection(0); // 默认中国标准时间
     }
 
     public static String getWinComponents(View view) {

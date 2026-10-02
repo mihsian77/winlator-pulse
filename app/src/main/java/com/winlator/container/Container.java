@@ -24,6 +24,12 @@ public class Container {
     public static final boolean DEFAULT_SWAP_RESOLUTION = false;
     // 刷新率：0 表示自动识别设备最高刷新率，其他值为固定刷新率（60/90/120/144）
     public static final int DEFAULT_REFRESH_RATE = 0;
+    // 强制全屏拉伸：低分辨率游戏画面拉伸至全屏，避免黑边
+    public static final boolean DEFAULT_FULLSCREEN_STRETCHED = false;
+    // 容器内语言环境（LC_ALL）
+    public static final String DEFAULT_LC_ALL = "zh_CN.utf8";
+    // 容器内时区（TZ）
+    public static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
     public static final String DEFAULT_AUDIO_DRIVER = AudioDrivers.ALSA;
     public static final String DEFAULT_DXWRAPPER = DXWrappers.DXVK;
     public static final String DEFAULT_WINCOMPONENTS = "direct3d=1,directsound=1,directmusic=1,directshow=0,directplay=0,xaudio=1,vcrun2005=0,vcrun2010=1,wmdecoder=1";
@@ -42,6 +48,9 @@ public class Container {
     private String screenOrientation = DEFAULT_SCREEN_ORIENTATION;
     private boolean swapResolution = DEFAULT_SWAP_RESOLUTION;
     private int refreshRate = DEFAULT_REFRESH_RATE;
+    private boolean fullscreenStretched = DEFAULT_FULLSCREEN_STRETCHED;
+    private String lcAll = DEFAULT_LC_ALL;
+    private String timezone = DEFAULT_TIMEZONE;
     private String envVars = DEFAULT_ENV_VARS;
     private String graphicsDriver = GraphicsDrivers.DEFAULT_VULKAN_DRIVER+","+ GraphicsDrivers.DEFAULT_OPENGL_DRIVER;
     private String dxwrapper = DEFAULT_DXWRAPPER;
@@ -107,6 +116,30 @@ public class Container {
 
     public void setRefreshRate(int refreshRate) {
         this.refreshRate = refreshRate;
+    }
+
+    public boolean isFullscreenStretched() {
+        return fullscreenStretched;
+    }
+
+    public void setFullscreenStretched(boolean fullscreenStretched) {
+        this.fullscreenStretched = fullscreenStretched;
+    }
+
+    public String getLcAll() {
+        return lcAll;
+    }
+
+    public void setLcAll(String lcAll) {
+        this.lcAll = lcAll != null ? lcAll : DEFAULT_LC_ALL;
+    }
+
+    public String getTimezone() {
+        return timezone;
+    }
+
+    public void setTimezone(String timezone) {
+        this.timezone = timezone != null ? timezone : DEFAULT_TIMEZONE;
     }
 
     public String getEnvVars() {
@@ -345,6 +378,9 @@ public class Container {
             data.put("screenOrientation", screenOrientation);
             data.put("swapResolution", swapResolution);
             data.put("refreshRate", refreshRate);
+            data.put("fullscreenStretched", fullscreenStretched);
+            data.put("lcAll", lcAll);
+            data.put("timezone", timezone);
             data.put("envVars", envVars);
             data.put("cpuList", cpuList);
             data.put("cpuListWoW64", cpuListWoW64);
@@ -394,6 +430,15 @@ public class Container {
                     break;
                 case "refreshRate" :
                     setRefreshRate(data.getInt(key));
+                    break;
+                case "fullscreenStretched" :
+                    setFullscreenStretched(data.getBoolean(key));
+                    break;
+                case "lcAll" :
+                    setLcAll(data.getString(key));
+                    break;
+                case "timezone" :
+                    setTimezone(data.getString(key));
                     break;
                 case "envVars" :
                     setEnvVars(data.getString(key));

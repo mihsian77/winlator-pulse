@@ -614,6 +614,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             envVars.putAll(container.getEnvVars());
             if (launchArgs != null) envVars.putAll(launchArgs.getExtra("envVars"));
+            // 容器设置的语言和时区优先于环境变量中的默认值
+            envVars.put("LC_ALL", container.getLcAll());
+            envVars.put("TZ", container.getTimezone());
             if (!envVars.has("WINEESYNC")) envVars.put("WINEESYNC", "1");
 
             guestProgramLauncherComponent.setBox64Preset(launchArgs != null ? launchArgs.getExtra("box64Preset", container.getBox64Preset()) : container.getBox64Preset());
@@ -689,6 +692,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         renderer.setCursorScale(preferences.getFloat("cursor_scale", 1.0f));
         renderer.setForceWindowsFullscreen(launchArgs != null && launchArgs.getExtra("forceFullscreen", "0").equals("1"));
         final boolean startFullscreen = launchArgs != null && launchArgs.getExtra("toggleFullscreen", "0").equals("1");
+        // 容器设置的强制全屏拉伸：低分辨率游戏画面拉伸至全屏
+        if (container.isFullscreenStretched()) renderer.setFullscreen(true);
 
         xServer.setRenderer(renderer);
         rootView.addView(xServerView);

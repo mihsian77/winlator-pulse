@@ -60,6 +60,10 @@
     <string name="screen_size">Screen Size</string>
     <string name="refresh_rate">刷新率</string>
     <string name="system_max_refresh">系统最高刷新率</string>
+    <string name="force_fullscreen">强制全屏拉伸</string>
+    <string name="force_fullscreen_help">低分辨率游戏画面拉伸至全屏，避免黑边</string>
+    <string name="lc_all">容器语言</string>
+    <string name="timezone">容器时区</string>
     <string name="screen_orientation">Screen Orientation</string>
     <string name="landscape">Landscape</string>
     <string name="portrait">Portrait</string>
