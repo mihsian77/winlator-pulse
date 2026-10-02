@@ -58,6 +58,8 @@
     <string name="disabled">Disabled</string>
     <string name="container">Container</string>
     <string name="screen_size">Screen Size</string>
+    <string name="refresh_rate">刷新率</string>
+    <string name="system_max_refresh">系统最高刷新率</string>
     <string name="screen_orientation">Screen Orientation</string>
     <string name="landscape">Landscape</string>
     <string name="portrait">Portrait</string>
@@ -232,6 +234,7 @@
     <string name="conservative">Conservative</string>
     <string name="intermediate">Intermediate</string>
     <string name="performance">Performance</string>
+    <string name="snapdragon_8_elite">骁龙8至尊</string>
     <string name="preset">Preset</string>
     <string name="you_cannot_remove_this_preset">You cannot remove this preset</string>
     <string name="you_cannot_remove_this_component_version">You cannot remove this component version</string>
@@ -400,6 +403,7 @@
     <string name="resource_memory_type">Resource Memory Type</string>
     <string name="zero_no_limit">0 (No limit)</string>
     <string name="custom">Custom</string>
+    <string name="system_resolution">系统分辨率</string>
     <string name="minimal">Minimal</string>
     <string name="trace">Trace</string>
     <string name="builtin_wine">Builtin (Wine)</string>

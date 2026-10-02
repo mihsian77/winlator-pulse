@@ -681,6 +681,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     private void setupUI() {
         FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
         xServerView = new XServerView(this, xServer);
+        // 设置刷新率：0 表示自动匹配系统最高刷新率，其他值为固定 60/90/120/144Hz
+        xServerView.setRefreshRate(container.getRefreshRate());
         final GLRenderer renderer = xServerView.getRenderer();
         renderer.setCursorVisible(false);
         renderer.setCursorColor(preferences.getInt("cursor_color", 0xffffff));

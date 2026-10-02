@@ -141,6 +141,7 @@ public class ContainerDetailFragment extends Fragment {
         if (wineInfos.size() > 1) loadWineVersionSpinner(view, sWineVersion, wineInfos);
 
         loadScreenSizeSpinner(view, isEditMode() ? container.getScreenSize() : Container.DEFAULT_SCREEN_SIZE);
+        loadRefreshRateSpinner(view, isEditMode() ? container.getRefreshRate() : Container.DEFAULT_REFRESH_RATE);
         loadScreenOrientationSpinner(view, isEditMode() ? container.getScreenOrientation() : Container.DEFAULT_SCREEN_ORIENTATION);
         final CheckBox cbSwapResolution = view.findViewById(R.id.CBSwapResolution);
         cbSwapResolution.setChecked(isEditMode() ? container.isSwapResolution() : Container.DEFAULT_SWAP_RESOLUTION);
@@ -226,6 +227,7 @@ public class ContainerDetailFragment extends Fragment {
                     container.setScreenSize(screenSize);
                     container.setScreenOrientation(getScreenOrientation(view));
                     container.setSwapResolution(isSwapResolution(view));
+                    container.setRefreshRate(getRefreshRate(view));
                     container.setEnvVars(envVars);
                     container.setCPUList(cpuList);
                     container.setCPUListWoW64(cpuListWoW64);
@@ -390,7 +392,9 @@ public class ContainerDetailFragment extends Fragment {
     public static String getScreenSize(View view) {
         Spinner sScreenSize = view.findViewById(R.id.SScreenSize);
         String value = sScreenSize.getSelectedItem().toString();
-        if (sScreenSize.getSelectedItemPosition() == 0) {
+        int position = sScreenSize.getSelectedItemPosition();
+        // 索引 0 = 自定义，索引 1 = 系统分辨率（自动识别设备屏幕分辨率）
+        if (position == 0) {
             value = Container.DEFAULT_SCREEN_SIZE;
             String strWidth = ((EditText)view.findViewById(R.id.ETScreenWidth)).getText().toString().trim();
             String strHeight = ((EditText)view.findViewById(R.id.ETScreenHeight)).getText().toString().trim();
@@ -399,6 +403,10 @@ public class ContainerDetailFragment extends Fragment {
                 int height = Integer.parseInt(strHeight);
                 if ((width % 2) == 0 && (height % 2) == 0) return width+"x"+height;
             }
+        }
+        else if (position == 1) {
+            // 系统分辨率：自动获取设备屏幕宽高，避免画面拉伸或黑边
+            return AppUtils.getScreenWidth()+"x"+AppUtils.getScreenHeight();
         }
         return StringUtils.parseIdentifier(value);
     }
@@ -437,10 +445,17 @@ public class ContainerDetailFragment extends Fragment {
 
         boolean found = AppUtils.setSpinnerSelectionFromIdentifier(sScreenSize, selectedValue);
         if (!found) {
-            sScreenSize.setSelection(0);
-            String[] screenSize = selectedValue.split("x");
-            ((EditText)view.findViewById(R.id.ETScreenWidth)).setText(screenSize[0]);
-            ((EditText)view.findViewById(R.id.ETScreenHeight)).setText(screenSize[1]);
+            // 如果当前分辨率等于设备实际分辨率，选中"系统分辨率"项（索引 1）
+            String deviceResolution = AppUtils.getScreenWidth()+"x"+AppUtils.getScreenHeight();
+            if (selectedValue.equals(deviceResolution)) {
+                sScreenSize.setSelection(1);
+            }
+            else {
+                sScreenSize.setSelection(0);
+                String[] screenSize = selectedValue.split("x");
+                ((EditText)view.findViewById(R.id.ETScreenWidth)).setText(screenSize[0]);
+                ((EditText)view.findViewById(R.id.ETScreenHeight)).setText(screenSize[1]);
+            }
         }
     }
 
@@ -465,6 +480,27 @@ public class ContainerDetailFragment extends Fragment {
     public static boolean isSwapResolution(View view) {
         CheckBox cbSwapResolution = view.findViewById(R.id.CBSwapResolution);
         return cbSwapResolution.isChecked();
+    }
+
+    // 刷新率下拉栏：索引 0 = 系统最高刷新率（自动识别），1-4 = 60/90/120/144Hz
+    public static int getRefreshRate(View view) {
+        Spinner sRefreshRate = view.findViewById(R.id.SRefreshRate);
+        int position = sRefreshRate.getSelectedItemPosition();
+        if (position == 0) return 0; // 0 表示自动识别系统最高刷新率
+        int[] rates = {0, 60, 90, 120, 144};
+        return position < rates.length ? rates[position] : 0;
+    }
+
+    public static void loadRefreshRateSpinner(View view, int selectedValue) {
+        Spinner sRefreshRate = view.findViewById(R.id.SRefreshRate);
+        int[] rates = {0, 60, 90, 120, 144};
+        for (int i = 0; i < rates.length; i++) {
+            if (rates[i] == selectedValue) {
+                sRefreshRate.setSelection(i);
+                return;
+            }
+        }
+        sRefreshRate.setSelection(0); // 默认自动识别
     }
 
     public static String getWinComponents(View view) {

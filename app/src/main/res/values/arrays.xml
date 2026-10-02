@@ -2,6 +2,7 @@
 <resources>
     <string-array name="screen_size_entries">
         <item>@string/custom</item>
+        <item>@string/system_resolution</item>
         <item>640x360 (16:9)</item>
         <item>640x480 (4:3)</item>
         <item>800x600 (4:3)</item>
@@ -15,6 +16,13 @@
         <item>1440x900 (16:10)</item>
         <item>1600x900 (16:9)</item>
         <item>1920x1080 (16:9)</item>
+    </string-array>
+    <string-array name="refresh_rate_entries">
+        <item>@string/system_max_refresh</item>
+        <item>60 Hz</item>
+        <item>90 Hz</item>
+        <item>120 Hz</item>
+        <item>144 Hz</item>
     </string-array>
     <string-array name="screen_orientation_entries">
         <item>@string/landscape</item>
