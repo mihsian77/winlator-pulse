@@ -472,6 +472,12 @@ public final class SteamRepository {
         loggedIn = true;
         emit("LoggedIn:" + sid64);
         Log.i(TAG, "Logged in as " + pGet("username", ""));
+        // 登录成功后主动请求许可证列表（Steam 服务器不会自动推送）
+        // 许可证列表到达后触发 onLicenseList → syncPackages → PICS 同步游戏信息
+        if (steamApps != null) {
+            steamApps.getLicenseList();
+            Log.i(TAG, "Requested license list");
+        }
     }
 
     private void onLoggedOff(LoggedOffCallback cb) {
