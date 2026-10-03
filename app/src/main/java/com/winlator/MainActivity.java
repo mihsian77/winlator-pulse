@@ -202,6 +202,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 preferences.edit().putBoolean("show_shortcuts_first", false).apply();
                 showFragment(new ContainersFragment());
                 break;
+            case R.id.menu_item_saves:
+                showFragment(new SavesFragment());
+                break;
             case R.id.menu_item_input_controls:
                 showFragment(InputControlsFragment.newInstance(selectedProfileId));
                 break;

@@ -600,4 +600,25 @@
     <string name="external_launch_no_free_drive">No free drive letter available</string>
     <string name="external_launch_mount_conflict">Only one extra directory can be mounted per launch, or the requested drive letter conflicts</string>
     <string name="external_launch_restart_session">An external launch request was received. End the current session and start the requested application?</string>
+    <!-- 存档管理 -->
+    <string name="saves">存档管理</string>
+    <string name="no_saves">暂无存档，点击右上角添加</string>
+    <string name="add_save">添加存档</string>
+    <string name="edit_save">编辑存档</string>
+    <string name="import_save">导入存档</string>
+    <string name="export_save">导出存档</string>
+    <string name="share_save">分享存档</string>
+    <string name="remove_save">移除存档</string>
+    <string name="save_transfer">转移到其他容器</string>
+    <string name="save_title">存档名称</string>
+    <string name="save_title_hint">例如：游戏名-存档位1</string>
+    <string name="save_path">存档路径</string>
+    <string name="save_path_hint">容器内存档文件夹的完整路径</string>
+    <string name="select_container">选择容器</string>
+    <string name="more_options">更多选项</string>
+    <string name="invalid_input">输入不完整</string>
+    <string name="save_added">存档已添加</string>
+    <string name="save_updated">存档已更新</string>
+    <string name="importing_save">正在导入存档...</string>
+    <string name="exporting_save">正在导出存档...</string>
 </resources>
