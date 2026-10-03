@@ -867,4 +867,22 @@
 <string name="steam_no_db_game">Game not found in database</string>
 <string name="steam_dd_init_failed">DepotDownloader init failed: %1$s</string>
 <string name="steam_dd_start_failed">Download start failed: %1$s</string>
+    <!-- FolderPicker 字符串 -->
+    <string name="folder_app_files">App Files (Wine containers)</string>
+    <string name="folder_internal">Internal Storage</string>
+    <string name="folder_sd">SD Card</string>
+    <string name="folder_select">Select Folder</string>
+    <string name="folder_location">Location:</string>
+    <string name="folder_select_this">✓  Select this folder</string>
+    <string name="folder_new_btn">+ New</string>
+    <string name="folder_up">↑  Up</string>
+    <string name="folder_empty">(empty or no read permission)</string>
+    <string name="folder_no_subdirs">(no subdirectories — use %1$s to create one)</string>
+    <string name="folder_name_hint">Folder name</string>
+    <string name="folder_new_title">New Folder</string>
+    <string name="folder_enter_name">Enter a folder name</string>
+    <string name="folder_no_slashes">Folder name cannot contain slashes</string>
+    <string name="folder_exists">Folder already exists</string>
+    <string name="folder_created">Created: %1$s</string>
+    <string name="folder_create_failed">Failed to create folder</string>
 </resources>

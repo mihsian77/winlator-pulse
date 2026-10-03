@@ -17,7 +17,7 @@ public class Shortcut {
     public final Container container;
     public final String name;
     public final String path;
-    public final Bitmap icon;
+    public Bitmap icon;
     public final File file;
     public final File iconFile;
     public final String iconName;
@@ -173,5 +173,10 @@ public class Shortcut {
                 if (linkFile.isFile()) linkFile.delete();
             }
         }
+    }
+
+    // 动态设置图标（供商店下载游戏封面后调用）
+    public void setIcon(Bitmap icon) {
+        this.icon = icon;
     }
 }
