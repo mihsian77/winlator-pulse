@@ -7,6 +7,9 @@ android {
 
     kotlinOptions {
         jvmTarget = '1.8'
+        // Ktor 3.2.2 / Okio 3.16.0 / 协程传递依赖是 Kotlin 2.x 编译的，
+        // 与 Kotlin 1.9.0 编译器元数据版本不匹配，加此 flag 跳过检查。
+        freeCompilerArgs += ['-Xskip-metadata-version-check']
     }
 
     defaultConfig {
