@@ -7,9 +7,6 @@ android {
 
     kotlinOptions {
         jvmTarget = '1.8'
-        // Ktor 3.2.2 / Okio 3.16.0 / 协程传递依赖是 Kotlin 2.x 编译的，
-        // 与 Kotlin 1.9.0 编译器元数据版本不匹配，加此 flag 跳过检查。
-        freeCompilerArgs += ['-Xskip-metadata-version-check']
     }
 
     defaultConfig {
@@ -118,7 +115,7 @@ dependencies {
     implementation 'org.apache.commons:commons-compress:1.28.0'
     implementation 'androidx.lifecycle:lifecycle-process:2.5.1'
     // Kotlin
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.0'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.0.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     // Steam Depot 下载器依赖
     implementation 'com.squareup.okhttp3:okhttp:4.9.3'
