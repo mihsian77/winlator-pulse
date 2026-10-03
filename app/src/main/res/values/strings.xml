@@ -772,9 +772,21 @@
 <string name="store_ver_unrecorded">Version not recorded — tap Check to verify</string>
 <string name="store_fetch_manifest">Fetching manifest.</string>
 <plurals name="store_games_cached">
-<plurals name="store_games_tap">
-<plurals name="store_dlcs_owned">
-<plurals name="store_library_count">
+        <item quantity="one">%1$d game — cached  •  tap ↺ to refresh</item>
+        <item quantity="other">%1$d games — cached  •  tap ↺ to refresh</item>
+    </plurals>
+    <plurals name="store_games_tap">
+        <item quantity="one">%1$d game — tap a card to install</item>
+        <item quantity="other">%1$d games — tap a card to install</item>
+    </plurals>
+    <plurals name="store_dlcs_owned">
+        <item quantity="one">%1$d DLC owned</item>
+        <item quantity="other">%1$d DLCs owned</item>
+    </plurals>
+    <plurals name="store_library_count">
+        <item quantity="one">%1$d game in library</item>
+        <item quantity="other">%1$d games in library</item>
+    </plurals>
 <string name="steam_signin_title">Sign in to your account</string>
 <string name="steam_username">Username</string>
 <string name="steam_password">Password</string>
