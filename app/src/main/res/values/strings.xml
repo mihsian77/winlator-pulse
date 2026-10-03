@@ -621,4 +621,15 @@
     <string name="save_updated">存档已更新</string>
     <string name="importing_save">正在导入存档...</string>
     <string name="exporting_save">正在导出存档...</string>
+    <!-- 游戏商店 -->
+    <string name="game_stores">游戏商店</string>
+    <string name="stores_header">游戏商店</string>
+    <string name="stores_desc_steam">Steam 游戏库与 Depot 下载</string>
+    <string name="stores_desc_epic">Epic Games Store（暂未开放）</string>
+    <string name="stores_desc_gog">GOG.com（暂未开放）</string>
+    <string name="stores_desc_amazon">Amazon Games（暂未开放）</string>
+    <string name="store_sign_in">登录</string>
+    <string name="stores_open_library">打开游戏库</string>
+    <string name="stores_status_in">已登录</string>
+    <string name="stores_status_out">未登录</string>
 </resources>

@@ -95,6 +95,37 @@
             android:exported="false"
             android:screenOrientation="sensor" />
 
+        <!-- Steam 商店相关 Activity -->
+        <activity android:name="com.winlator.store.FolderPickerActivity"
+            android:theme="@style/AppThemeDark"
+            android:exported="false"
+            android:screenOrientation="fullSensor" />
+        <activity android:name="com.winlator.store.SteamMainActivity"
+            android:theme="@style/AppThemeDark"
+            android:exported="false"
+            android:screenOrientation="fullSensor" />
+        <activity android:name="com.winlator.store.SteamLoginActivity"
+            android:theme="@style/AppThemeDark"
+            android:exported="false"
+            android:screenOrientation="fullSensor" />
+        <activity android:name="com.winlator.store.SteamGamesActivity"
+            android:theme="@style/AppThemeDark"
+            android:exported="false"
+            android:screenOrientation="fullSensor" />
+        <activity android:name="com.winlator.store.SteamGameDetailActivity"
+            android:theme="@style/AppThemeDark"
+            android:exported="false"
+            android:screenOrientation="fullSensor" />
+        <activity android:name="com.winlator.store.QrLoginActivity"
+            android:theme="@style/AppThemeDark"
+            android:exported="false"
+            android:screenOrientation="fullSensor" />
+
+        <!-- Steam 下载前台服务 -->
+        <service android:name="com.winlator.store.SteamForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- Needed for keep the container alive when in background or the device is locked. -->
         <service
             android:name="com.winlator.services.ForegroundService"
