@@ -147,8 +147,8 @@ public class ContainerDetailFragment extends Fragment {
         cbForceFullscreen.setChecked(isEditMode() ? container.isFullscreenStretched() : Container.DEFAULT_FULLSCREEN_STRETCHED);
         view.findViewById(R.id.BTForceFullscreenHelp).setOnClickListener((v) -> AppUtils.showHelpBox(context, v, R.string.force_fullscreen_help));
         // 容器语言和时区
-        loadLcAllSpinner(view, isEditMode() ? container.getLcAll() : Container.DEFAULT_LC_ALL);
-        loadTimezoneSpinner(view, isEditMode() ? container.getTimezone() : Container.DEFAULT_TIMEZONE);
+        loadLcAllSpinner(view, isEditMode() ? container.getLcAll() : Container.getDefaultLcAll());
+        loadTimezoneSpinner(view, isEditMode() ? container.getTimezone() : Container.getDefaultTimezone());
         loadScreenOrientationSpinner(view, isEditMode() ? container.getScreenOrientation() : Container.DEFAULT_SCREEN_ORIENTATION);
         final CheckBox cbSwapResolution = view.findViewById(R.id.CBSwapResolution);
         cbSwapResolution.setChecked(isEditMode() ? container.isSwapResolution() : Container.DEFAULT_SWAP_RESOLUTION);
@@ -518,7 +518,7 @@ public class ContainerDetailFragment extends Fragment {
         Spinner sLcAll = view.findViewById(R.id.SLcAll);
         String[] values = view.getResources().getStringArray(R.array.lc_all_values);
         int position = sLcAll.getSelectedItemPosition();
-        return position < values.length ? values[position] : Container.DEFAULT_LC_ALL;
+        return position < values.length ? values[position] : Container.getDefaultLcAll();
     }
 
     public static void loadLcAllSpinner(View view, String selectedValue) {
@@ -538,7 +538,7 @@ public class ContainerDetailFragment extends Fragment {
         Spinner sTimezone = view.findViewById(R.id.STimezone);
         String[] values = view.getResources().getStringArray(R.array.timezone_values);
         int position = sTimezone.getSelectedItemPosition();
-        return position < values.length ? values[position] : Container.DEFAULT_TIMEZONE;
+        return position < values.length ? values[position] : Container.getDefaultTimezone();
     }
 
     public static void loadTimezoneSpinner(View view, String selectedValue) {

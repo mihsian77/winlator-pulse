@@ -140,42 +140,6 @@
                     android:contentDescription="@string/help" />
             </LinearLayout>
 
-            <!-- 容器语言 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/lc_all" />
-
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SLcAll"
-                    android:entries="@array/lc_all_entries" />
-            </LinearLayout>
-
-            <!-- 容器时区 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/timezone" />
-
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/STimezone"
-                    android:entries="@array/timezone_entries" />
-            </LinearLayout>
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -207,6 +171,42 @@
                         android:text="@string/swap_resolution"
                         android:layout_marginLeft="8dp" />
                 </LinearLayout>
+            </LinearLayout>
+
+            <!-- 容器语言（独立设置，启动时注入 LC_ALL 环境变量） -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/lc_all" />
+
+                <Spinner
+                    style="@style/ComboBox"
+                    android:layout_width="match_parent"
+                    android:id="@+id/SLcAll"
+                    android:entries="@array/lc_all_entries" />
+            </LinearLayout>
+
+            <!-- 容器时区（独立设置，启动时注入 TZ 环境变量） -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/timezone" />
+
+                <Spinner
+                    style="@style/ComboBox"
+                    android:layout_width="match_parent"
+                    android:id="@+id/STimezone"
+                    android:entries="@array/timezone_entries" />
             </LinearLayout>
 
             <LinearLayout
