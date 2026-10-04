@@ -20,6 +20,14 @@ static inline const char* getAppCacheDir() {
     return dir ? dir : "/data/data/com.winlator/cache";
 }
 #define APP_CACHE_DIR getAppCacheDir()
+
+// 共存版：files 目录由 Java 层通过环境变量传入，避免渲染器 socket 路径硬编码包名
+static inline const char* getAppFilesDir() {
+    const char* dir = getenv("APP_FILES_DIR");
+    return dir ? dir : "/data/data/com.winlator/files";
+}
+#define APP_FILES_DIR getAppFilesDir()
+
 #define LIBVULKAN_PATH "/system/lib64/libvulkan.so"
 
 #define CLOSEFD(x) \

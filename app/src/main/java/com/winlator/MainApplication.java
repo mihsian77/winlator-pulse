@@ -102,6 +102,11 @@ public class MainApplication extends Application {
     // /data/data/com.winlator/cache 导致共存版 Vulkan API 版本缓存、纹理缓存写错目录。
     private static native void setAppCacheDir(String path);
 
+    // 共存版：把实际 files 目录传入 native 层，写入 APP_FILES_DIR 环境变量。
+    // native 层 vortek/gladio 渲染器据此拼接 socket 路径，避免硬编码
+    // /data/data/com.winlator/files 导致 MT 改包共存后渲染器连不上 server。
+    private static native void setAppFilesDir(String path);
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -121,6 +126,9 @@ public class MainApplication extends Application {
         // native 层缓存目录动态化：把实际 cache 路径传入 native 层，
         // 上游硬编码 /data/data/com.winlator/cache，共存版会写错目录。
         setAppCacheDir(getCacheDir().getAbsolutePath());
+        // native 层 files 目录动态化：把实际 files 路径传入 native 层，
+        // vortek/gladio 渲染器据此拼接 socket 路径，避免硬编码包名导致 MT 改包后渲染器连不上 server。
+        setAppFilesDir(getFilesDir().getAbsolutePath());
         // MT 改包共存后 getPackageName() 为新包名，PatchUtils 据此决定是否替换解压产物中的宿主路径
         // (包名仍为原包名 com.winlator 时不启用，原版 APK 行为完全不变)
         File dataDir = getDataDir();
