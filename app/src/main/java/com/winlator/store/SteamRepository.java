@@ -9,8 +9,10 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -129,6 +131,9 @@ public final class SteamRepository {
     private final AtomicBoolean pumping    = new AtomicBoolean(false);
     /** True while a connect() call is in flight (posted to pump thread but not yet completed). */
     private final AtomicBoolean connecting = new AtomicBoolean(false);
+
+    /** 强制全量同步标志（用户手动刷新时为true，自动同步时为false做增量） */
+    private volatile boolean forceSync = false;
 
     // raw licenses (kept for Phase 5 DepotDownloader)
     private final List<License> licenses = new ArrayList<>();
@@ -524,10 +529,27 @@ public final class SteamRepository {
             emit("LibrarySynced:0");
             return;
         }
+        // 增量同步：非强制刷新时，跳过数据库里已有的 appId
+        List<Integer> toRequest = appIds;
+        if (!forceSync) {
+            Set<Integer> existing = new HashSet<>(SteamDatabase.getInstance().getAllAppIds());
+            toRequest = new ArrayList<>();
+            for (int id : appIds) {
+                if (!existing.contains(id)) toRequest.add(id);
+            }
+            Log.i(TAG, "Incremental sync: " + appIds.size() + " total, " + toRequest.size() + " new, " + (appIds.size() - toRequest.size()) + " skipped");
+            emit("SyncProgress:" + toRequest.size() + " new apps to sync");
+        }
+        if (toRequest.isEmpty()) {
+            syncPhase = SYNC_IDLE;
+            Log.i(TAG, "Incremental sync: no new apps, sync complete");
+            emit("LibrarySynced:" + appIds.size());
+            return;
+        }
         syncPhase = SYNC_APPS;
         pendingApps.clear();
         List<PICSRequest> appRequests = new ArrayList<>();
-        for (int id : appIds) {
+        for (int id : toRequest) {
             appRequests.add(new PICSRequest(id));
         }
         Log.i(TAG, "PICS: requesting info for " + appRequests.size() + " apps");
@@ -707,21 +729,26 @@ public final class SteamRepository {
     // Callback handlers for manifest codes and CDN tokens will be wired in once
     // the correct JavaSteam class names are confirmed from the JAR dump in CI.
 
-    /** Trigger a full library re-sync (e.g. from pull-to-refresh). Safe to call from any thread. */
-    public void syncLibrary() {
+    /** Trigger a library sync. Safe to call from any thread.
+     * @param force true=全量同步所有应用（用户手动刷新）；false=增量同步（跳过数据库已有应用） */
+    public void syncLibrary(boolean force) {
+        forceSync = force;
         List<License> copy;
         synchronized (licenses) { copy = new ArrayList<>(licenses); }
         if (copy.isEmpty()) {
             Log.w(TAG, "syncLibrary() called but license list is empty");
             return;
         }
-        // picsGetProductInfo() does network I/O — must run on the pump background thread.
+        Log.i(TAG, "syncLibrary: " + (force ? "FORCE full sync" : "incremental sync") + ", " + copy.size() + " licenses");
         if (pumpHandler != null) {
             pumpHandler.post(() -> syncPackages(copy));
         } else {
             new Thread(() -> syncPackages(copy), "SteamSync").start();
         }
     }
+
+    /** 兼容旧调用：默认增量同步 */
+    public void syncLibrary() { syncLibrary(false); }
 
     // -------------------------------------------------------------------------
     // Login

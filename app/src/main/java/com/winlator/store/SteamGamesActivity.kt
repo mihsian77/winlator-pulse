@@ -104,11 +104,11 @@ class SteamGamesActivity : Activity(), SteamRepository.SteamEventListener {
                 ui.post { statusText.text = getString(R.string.steam_disconnected) }
             }
             event == "Connected" -> {
-                // After reconnect, retry sync if still empty.
+                // After reconnect, retry sync if still empty (force full sync).
                 val repo = SteamRepository.getInstance()
                 if (games.isEmpty() && repo.isLoggedIn) {
                     ui.post { statusText.text = getString(R.string.steam_reconnected) }
-                    repo.syncLibrary()
+                    repo.syncLibrary(true)
                 }
             }
         }
@@ -316,7 +316,10 @@ class SteamGamesActivity : Activity(), SteamRepository.SteamEventListener {
             setTextColor(Color.WHITE)
             setBackgroundColor(BLUE)
             setPadding(dp(12), 0, dp(12), 0)
-            setOnClickListener { SteamRepository.getInstance().syncLibrary() }
+            setOnClickListener {
+                statusText.text = getString(R.string.steam_refreshing)
+                SteamRepository.getInstance().syncLibrary(true)
+            }
         }
         val logoutBtn = Button(this).apply {
             text = getString(R.string.steam_logout)
