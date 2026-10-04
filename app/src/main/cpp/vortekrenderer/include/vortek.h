@@ -5,7 +5,16 @@
 #define MEMORY_POOL_MAX_SIZE 65536
 #define SERVER_RING_BUFFER_SIZE 4194304
 #define CLIENT_RING_BUFFER_SIZE 262144
-#define VORTEK_SERVER_PATH "/data/data/com.winlator/files/rootfs/tmp/.vortek/V0"
+
+// 共存版：socket 路径由 APP_FILES_DIR 运行时拼接，避免硬编码包名导致 MT 改包后渲染器连不上 server
+#include <stdio.h>
+static inline const char* getVortekServerPath() {
+    static char path[256];
+    snprintf(path, sizeof(path), "%s/rootfs/tmp/.vortek/V0", APP_FILES_DIR);
+    return path;
+}
+#define VORTEK_SERVER_PATH getVortekServerPath()
+
 #define VK_HANDLE_BYTE_COUNT 8
 #define THREAD_POOL_NUM_THREADS 8
 

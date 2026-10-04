@@ -15,6 +15,18 @@ void JNICALL Java_com_winlator_MainApplication_setAppCacheDir(JNIEnv* env, jclas
     }
 }
 
+// 共存版：由 Java 层传入实际 files 目录，写入 APP_FILES_DIR 环境变量。
+// native 层 vortek/gladio 渲染器据此拼接 socket 路径，避免硬编码
+// /data/data/com.winlator/files 导致 MT 改包共存后渲染器连不上 server。
+void JNICALL Java_com_winlator_MainApplication_setAppFilesDir(JNIEnv* env, jclass cls, jstring path) {
+    if (path == NULL) return;
+    const char* dir = (*env)->GetStringUTFChars(env, path, NULL);
+    if (dir != NULL) {
+        setenv("APP_FILES_DIR", dir, 1);
+        (*env)->ReleaseStringUTFChars(env, path, dir);
+    }
+}
+
 // The @CriticalNative methods below are implemented with the critical native ABI (no JNIEnv*/jclass
 // parameters). The built-in dynamic JNI linking only resolves them on Android 12+; on Android 8-11
 // they must be registered explicitly with RegisterNatives, otherwise the ABI mismatch crashes.
@@ -43,6 +55,7 @@ extern jint JNICALL Java_com_winlator_xconnector_XOutputStream_length(jlong nati
 
 static const JNINativeMethod MAIN_APPLICATION_METHODS[] = {
     {"setAppCacheDir", "(Ljava/lang/String;)V", (void*)Java_com_winlator_MainApplication_setAppCacheDir},
+    {"setAppFilesDir", "(Ljava/lang/String;)V", (void*)Java_com_winlator_MainApplication_setAppFilesDir},
 };
 
 static const JNINativeMethod GPU_HELPER_METHODS[] = {
