@@ -539,6 +539,7 @@
     <string name="present_mode">呈现模式</string>
     <string name="allow_external_launch">允许外部应用启动（Intent / 深链）</string>
     <string name="allow_external_launch_tooltip">向其他应用（自动化工具、游戏前端）暴露启动入口，可带临时参数覆盖启动容器内的 exe</string>
+    <string name="external_launch_container_fallback">容器 %1$s 不存在，已改用 %2$s</string>
     <string name="external_launch_source">来源：%s</string>
     <string name="external_launch_none">无</string>
     <string name="external_launch_save_warning">确认后会把以上覆盖写入容器配置。</string>
