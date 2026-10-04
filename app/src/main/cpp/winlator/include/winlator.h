@@ -1,5 +1,6 @@
 #pragma once
 #include <stdlib.h>
+#include <stdio.h>
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array)[0])
 #define MIN(a, b) (((a)<(b))?(a):(b))
@@ -27,6 +28,20 @@ static inline const char* getAppFilesDir() {
     return dir ? dir : "/data/data/com.winlator/files";
 }
 #define APP_FILES_DIR getAppFilesDir()
+
+// 共存版：vortek 渲染器 socket 路径运行时拼接，避免硬编码包名导致 MT 改包后连不上 server
+static inline const char* getVortekServerPath() {
+    static char path[256];
+    snprintf(path, sizeof(path), "%s/rootfs/tmp/.vortek/V0", APP_FILES_DIR);
+    return path;
+}
+
+// 共存版：gladio 渲染器 X11 socket 路径运行时拼接，避免硬编码包名导致 MT 改包后连不上 server
+static inline const char* getX11ServerPath() {
+    static char path[256];
+    snprintf(path, sizeof(path), "%s/rootfs/tmp/.X11-unix/X0", APP_FILES_DIR);
+    return path;
+}
 
 #define LIBVULKAN_PATH "/system/lib64/libvulkan.so"
 

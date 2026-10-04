@@ -18,13 +18,7 @@
    带宽、显存占用与稳态采样带宽。置 0 可整体回退到"解压成 BGRA 再上传"的旧路径。 */
 #define S3TC_PASSTHROUGH 1
 
-// 共存版：socket 路径由 APP_FILES_DIR 运行时拼接，避免硬编码包名导致 MT 改包后渲染器连不上 X server
-#include <stdio.h>
-static inline const char* getX11ServerPath() {
-    static char path[256];
-    snprintf(path, sizeof(path), "%s/rootfs/tmp/.X11-unix/X0", APP_FILES_DIR);
-    return path;
-}
+// 共存版：socket 路径由 winlator.h 的 getX11ServerPath() 运行时拼接，避免硬编码包名
 #define X11_SERVER_PATH getX11ServerPath()
 
 #define GL_STRING_VERSION "3.3"

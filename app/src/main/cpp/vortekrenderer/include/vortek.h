@@ -6,13 +6,7 @@
 #define SERVER_RING_BUFFER_SIZE 4194304
 #define CLIENT_RING_BUFFER_SIZE 262144
 
-// 共存版：socket 路径由 APP_FILES_DIR 运行时拼接，避免硬编码包名导致 MT 改包后渲染器连不上 server
-#include <stdio.h>
-static inline const char* getVortekServerPath() {
-    static char path[256];
-    snprintf(path, sizeof(path), "%s/rootfs/tmp/.vortek/V0", APP_FILES_DIR);
-    return path;
-}
+// 共存版：socket 路径由 winlator.h 的 getVortekServerPath() 运行时拼接，避免硬编码包名
 #define VORTEK_SERVER_PATH getVortekServerPath()
 
 #define VK_HANDLE_BYTE_COUNT 8
