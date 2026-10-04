@@ -225,30 +225,44 @@ class SteamGamesActivity : Activity(), SteamRepository.SteamEventListener {
     // Cover art loading
     // -------------------------------------------------------------------------
 
+    // 多 CDN 回退列表，按优先级排列（大陆访问稳定性不同）
+    private val coverCdns = arrayOf(
+        "https://cdn.cloudflare.steamstatic.com/steam/apps/",
+        "https://shared.steamstatic.com/store_item_assets/steam/apps/",
+        "https://steamcdn-a.akamaihd.net/steam/apps/"
+    )
+
     private fun loadCoverArt(view: ImageView, appId: Int) {
         imageCache.get(appId)?.let { cached ->
             view.setImageBitmap(cached)
             return
         }
         imageExecutor.submit {
-            // Try portrait art first (600x900), fall back to wide header
-            val bmp = tryBitmap("https://shared.steamstatic.com/store_item_assets/steam/apps/$appId/library_600x900.jpg")
-                   ?: tryBitmap("https://shared.steamstatic.com/store_item_assets/steam/apps/$appId/header.jpg")
+            // 依次尝试：竖版封面 → 横版封面 → 小胶囊图，每个都遍历所有 CDN
+            var bmp: Bitmap? = null
+            outer@ for (cdn in coverCdns) {
+                for (size in arrayOf("library_600x900.jpg", "header.jpg", "capsule_184x69.jpg")) {
+                    bmp = tryBitmap("$cdn$appId/$size")
+                    if (bmp != null) break@outer
+                }
+            }
             if (bmp != null) {
                 imageCache.put(appId, bmp)
                 ui.post {
-                    // Only set if this view still shows the same appId (not recycled)
                     val parent = view.parent as? LinearLayout
                     if (parent?.tag == appId) view.setImageBitmap(bmp)
                 }
+            } else {
+                android.util.Log.w("SteamGames", "No cover found for appId=$appId")
             }
         }
     }
 
     private fun tryBitmap(url: String): Bitmap? = try {
         val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 6_000
-        conn.readTimeout    = 10_000
+        conn.connectTimeout = 5_000
+        conn.readTimeout    = 8_000
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) WinlatorPulse/1.0")
         conn.connect()
         if (conn.responseCode == 200)
             BitmapFactory.decodeStream(conn.inputStream)

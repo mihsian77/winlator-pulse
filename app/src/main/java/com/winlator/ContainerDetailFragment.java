@@ -142,10 +142,6 @@ public class ContainerDetailFragment extends Fragment {
 
         loadScreenSizeSpinner(view, isEditMode() ? container.getScreenSize() : Container.DEFAULT_SCREEN_SIZE);
         loadRefreshRateSpinner(view, isEditMode() ? container.getRefreshRate() : Container.DEFAULT_REFRESH_RATE);
-        // 强制全屏拉伸
-        final CheckBox cbForceFullscreen = view.findViewById(R.id.CBForceFullscreen);
-        cbForceFullscreen.setChecked(isEditMode() ? container.isFullscreenStretched() : Container.DEFAULT_FULLSCREEN_STRETCHED);
-        view.findViewById(R.id.BTForceFullscreenHelp).setOnClickListener((v) -> AppUtils.showHelpBox(context, v, R.string.force_fullscreen_help));
         // 容器语言和时区
         loadLcAllSpinner(view, isEditMode() ? container.getLcAll() : Container.getDefaultLcAll());
         loadTimezoneSpinner(view, isEditMode() ? container.getTimezone() : Container.getDefaultTimezone());
@@ -235,7 +231,6 @@ public class ContainerDetailFragment extends Fragment {
                     container.setScreenOrientation(getScreenOrientation(view));
                     container.setSwapResolution(isSwapResolution(view));
                     container.setRefreshRate(getRefreshRate(view));
-                    container.setFullscreenStretched(((CheckBox)view.findViewById(R.id.CBForceFullscreen)).isChecked());
                     container.setLcAll(getLcAll(view));
                     container.setTimezone(getTimezone(view));
                     container.setEnvVars(envVars);

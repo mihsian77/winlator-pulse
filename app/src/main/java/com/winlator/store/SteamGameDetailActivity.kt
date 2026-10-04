@@ -254,12 +254,31 @@ class SteamGameDetailActivity : Activity(), SteamRepository.SteamEventListener {
     }
 
     private fun loadHeaderImage() {
-        val url = game?.headerUrl ?: return
+        val appId = game?.appId ?: return
         Thread {
-            try {
-                val bmp: Bitmap = BitmapFactory.decodeStream(URL(url).openStream())
-                ui.post { headerImage.setImageBitmap(bmp) }
-            } catch (_: Exception) {}
+            // 多 CDN 回退，提高大陆访问成功率
+            val cdns = arrayOf(
+                "https://cdn.cloudflare.steamstatic.com/steam/apps/",
+                "https://shared.steamstatic.com/store_item_assets/steam/apps/",
+                "https://steamcdn-a.akamaihd.net/steam/apps/"
+            )
+            var bmp: Bitmap? = null
+            outer@ for (cdn in cdns) {
+                for (size in arrayOf("header.jpg", "library_600x900.jpg", "capsule_616x353.jpg")) {
+                    try {
+                        val conn = URL("$cdn$appId/$size").openConnection() as java.net.HttpURLConnection
+                        conn.connectTimeout = 5_000
+                        conn.readTimeout = 8_000
+                        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) WinlatorPulse/1.0")
+                        conn.connect()
+                        if (conn.responseCode == 200) {
+                            bmp = BitmapFactory.decodeStream(conn.inputStream)
+                            if (bmp != null) break@outer
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+            if (bmp != null) ui.post { headerImage.setImageBitmap(bmp) }
         }.start()
     }
 
