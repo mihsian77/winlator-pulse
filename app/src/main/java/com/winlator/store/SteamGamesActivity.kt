@@ -33,6 +33,18 @@ class SteamGamesActivity : Activity(), SteamRepository.SteamEventListener {
     private lateinit var emptyText: TextView
     private var games: List<SteamGame> = emptyList()
 
+    // 游戏分类：显示名称 → 对应的 PICS type 值（null 表示全部）
+    private val categories = arrayOf(
+        "全部" to null,
+        "游戏" to "game",
+        "软件" to "application",
+        "工具" to "tool",
+        "媒体" to "media",
+        "DLC" to "dlc"
+    )
+    private var currentCategory: String? = "game"  // 默认只显示游戏
+    private lateinit var categoryButtons: Array<Button>
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Defensive init: handle cold-start after process crash (Android restarts
@@ -110,21 +122,20 @@ class SteamGamesActivity : Activity(), SteamRepository.SteamEventListener {
         val repo = try {
             SteamRepository.getInstance()
         } catch (e: IllegalStateException) {
-            // Process was restarted without going through SteamMainActivity.
             startActivity(android.content.Intent(this, SteamMainActivity::class.java))
             finish()
             return
         }
-        // Use in-memory cache — avoids a SQLite read on every resume/rotate.
-        // Cache is invalidated on LibrarySynced, DownloadComplete, DownloadCancelled,
-        // and markUninstalled(), so installed state is always current.
         val rows = repo.getCachedGameRows()
+        // 按当前选中的分类过滤（null = 全部）
         games = rows
-            .filter { it.type == "game" }
+            .filter { currentCategory == null || it.type.equals(currentCategory, ignoreCase = true) }
             .map { SteamGame.fromGameRow(it) }
             .sortedBy { it.name.lowercase() }
         if (games.isNotEmpty()) {
             statusText.text = resources.getQuantityString(R.plurals.store_library_count, games.size, games.size)
+        } else {
+            statusText.text = if (currentCategory == null) "库为空" else "该分类下暂无内容"
         }
         refreshList()
     }
@@ -342,6 +353,40 @@ class SteamGamesActivity : Activity(), SteamRepository.SteamEventListener {
         }
         root.addView(statusText)
 
+        // 分类标签栏（横向滚动）
+        val categoryScroll = android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            setBackgroundColor(Color.parseColor("#1A1A2E"))
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+        }
+        val categoryBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        categoryButtons = Array(categories.size) { i ->
+            val (name, type) = categories[i]
+            Button(this@SteamGamesActivity).apply {
+                text = name
+                textSize = 12f
+                setPadding(dp(12), dp(2), dp(12), dp(2))
+                setOnClickListener {
+                    currentCategory = type
+                    updateCategoryButtons()
+                    loadGames()
+                }
+            }
+        }
+        for (btn in categoryButtons) {
+            categoryBar.addView(btn, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(32)).apply {
+                marginEnd = dp(6)
+            })
+        }
+        categoryScroll.addView(categoryBar)
+        root.addView(categoryScroll, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        updateCategoryButtons()
+
         // Empty state
         emptyText = TextView(this).apply {
             text = getString(R.string.steam_no_games)
@@ -369,6 +414,22 @@ class SteamGamesActivity : Activity(), SteamRepository.SteamEventListener {
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         return root
+    }
+
+    /** 更新分类按钮的选中/未选中样式 */
+    private fun updateCategoryButtons() {
+        for (i in categoryButtons.indices) {
+            val btn = categoryButtons[i]
+            val (_, type) = categories[i]
+            val selected = (currentCategory == type)
+            if (selected) {
+                btn.setBackgroundColor(BLUE)
+                btn.setTextColor(Color.WHITE)
+            } else {
+                btn.setBackgroundColor(Color.parseColor("#3A3A4A"))
+                btn.setTextColor(Color.parseColor("#AAAAAA"))
+            }
+        }
     }
 
     /** Build a card row: [portrait art | name / developer / genres / size / metacritic] */
