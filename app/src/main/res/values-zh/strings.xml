@@ -57,6 +57,8 @@
     <string name="disabled">已禁用</string>
     <string name="container">容器</string>
     <string name="screen_size">屏幕分辨率</string>
+    <string name="system_resolution">系统分辨率</string>
+    <string name="system_max_refresh">系统最高刷新率</string>
     <string name="screen_orientation">屏幕方向</string>
     <string name="landscape">横屏</string>
     <string name="portrait">竖屏</string>
