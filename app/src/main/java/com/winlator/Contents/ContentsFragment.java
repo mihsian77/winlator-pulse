@@ -467,7 +467,7 @@ public class ContentsFragment extends Fragment {
         TextView tv = new TextView(requireContext());
         tv.setText(name);
         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        tv.setTextColor(getColorFromAttr(android.R.attr.colorPrimaryText, Color.parseColor("#212121"), Color.parseColor("#FFFFFF")));
+        tv.setTextColor(getColorFromAttr(android.R.attr.textColorPrimary, Color.parseColor("#212121"), Color.parseColor("#FFFFFF")));
         tv.setTypeface(Typeface.DEFAULT_BOLD);
         tv.setMaxLines(1);
         tv.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -479,7 +479,7 @@ public class ContentsFragment extends Fragment {
         String categoryName = getCategoryDisplayName(currentCategory);
         descView.setText(categoryName + (fileSize != null ? " · " + fileSize : ""));
         descView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        descView.setTextColor(getColorFromAttr(android.R.attr.colorSecondaryText, Color.parseColor("#757575"), Color.parseColor("#B0B0B0")));
+        descView.setTextColor(getColorFromAttr(android.R.attr.textColorSecondary, Color.parseColor("#757575"), Color.parseColor("#B0B0B0")));
         descView.setMaxLines(1);
         descView.setPadding(0, dpToPx(2), 0, 0);
         infoLayout.addView(descView);
