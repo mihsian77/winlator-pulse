@@ -135,6 +135,13 @@
             android:stopWithTask="false">
         </service>
 
+        <!-- 组件安装后台服务 -->
+        <service
+            android:name="com.winlator.services.InstallService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.FileProvider"
