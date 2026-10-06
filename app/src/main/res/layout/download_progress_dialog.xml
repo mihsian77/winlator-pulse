@@ -88,7 +88,6 @@
                 app:trackColor="#e0e0e0"
                 app:indicatorColor="?attr/colorAccent"
                 app:trackCornerRadius="3dp"
-                app:indicatorCornerRadius="3dp"
                 android:progress="0" />
 
             <!-- 信息行：速度 | 已下载/总大小 | 剩余时间 -->
