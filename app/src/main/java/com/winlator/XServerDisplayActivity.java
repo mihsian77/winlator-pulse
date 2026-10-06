@@ -267,6 +267,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         preloaderDialog.show(R.string.starting_up);
 
+        // 将用户设置的刷新率传递给 X server，供 XRandR 扩展返回给 Wine/游戏
+        screenInfo.refreshRate = container.getRefreshRate();
+
         inputControlsManager = new InputControlsManager(this);
         xServer = new XServer(this, screenInfo);
         xServer.setWinHandler(winHandler);

@@ -15,6 +15,7 @@ import com.winlator.xserver.extensions.PresentExtension;
 import com.winlator.xserver.extensions.SyncExtension;
 import com.winlator.xserver.extensions.XComposite;
 import com.winlator.xserver.extensions.XInputExtension;
+import com.winlator.xserver.extensions.XRandRExtension;
 
 import java.nio.charset.Charset;
 import java.util.EnumMap;
@@ -230,7 +231,8 @@ public class XServer {
             new XComposite(this, opcode--),
             new GLXExtension(this, opcode--),
             new GenericEventExtension(this, opcode--),
-            new XInputExtension(this, opcode--)
+            new XInputExtension(this, opcode--),
+            new XRandRExtension(this, opcode--)
         };
 
         short nextEventId = 64;
