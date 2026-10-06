@@ -221,6 +221,13 @@ public class InstallService extends Service {
     }
 
     /**
+     * 更新通知（两参数重载，默认未完成）
+     */
+    private void updateNotification(String text, int progress) {
+        updateNotification(text, progress, false);
+    }
+
+    /**
      * 更新通知
      */
     private void updateNotification(String text, int progress, boolean completed) {
