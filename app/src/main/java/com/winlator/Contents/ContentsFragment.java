@@ -1,7 +1,10 @@
 package com.winlator.contents;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -37,6 +40,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
 import com.winlator.core.TarCompressorUtils;
+import com.winlator.services.InstallService;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -69,6 +73,7 @@ public class ContentsFragment extends Fragment {
     private Uri selectedFileUri;
 
     private AlertDialog installProgressDialog;
+    private BroadcastReceiver installCompleteReceiver;
 
     private final ActivityResultLauncher<Intent> filePickerLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -92,12 +97,61 @@ public class ContentsFragment extends Fragment {
         if (activity != null && activity.getSupportActionBar() != null) {
             activity.getSupportActionBar().setTitle("组件管理");
         }
+        // 注册安装完成广播接收器
+        registerInstallReceiver();
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
         dismissInstallProgressDialog();
+        unregisterInstallReceiver();
+    }
+
+    /**
+     * 注册安装完成广播接收器
+     */
+    private void registerInstallReceiver() {
+        if (installCompleteReceiver != null) return;
+        installCompleteReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String fileName = intent.getStringExtra("file_name");
+                boolean success = intent.getBooleanExtra("success", false);
+                String error = intent.getStringExtra("error");
+                if (success) {
+                    showToast("✔ 安装完成: " + fileName);
+                    // 自动切换到对应分类并刷新列表
+                    String detected = detectCategory(fileName);
+                    if (detected != null) {
+                        currentCategory = detected;
+                        int pos = Arrays.asList(FILE_TYPES).indexOf(currentCategory);
+                        if (pos >= 0 && categorySpinner != null) categorySpinner.setSelection(pos);
+                    }
+                    refreshFileList();
+                } else if (error != null && !error.equals("已取消")) {
+                    showToast("✘ 安装失败: " + error);
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter("com.winlator.action.INSTALL_COMPLETED");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requireContext().registerReceiver(installCompleteReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            requireContext().registerReceiver(installCompleteReceiver, filter);
+        }
+    }
+
+    /**
+     * 注销安装完成广播接收器
+     */
+    private void unregisterInstallReceiver() {
+        if (installCompleteReceiver != null) {
+            try {
+                requireContext().unregisterReceiver(installCompleteReceiver);
+            } catch (Exception ignored) {}
+            installCompleteReceiver = null;
+        }
     }
 
     private void initDirectories() {
@@ -241,27 +295,17 @@ public class ContentsFragment extends Fragment {
     private void showInstallDialog(String fileName) {
         new AlertDialog.Builder(requireContext())
                 .setTitle("安全提示")
-                .setMessage("即将安装：" + fileName + "\n请确认文件来源可靠")
+                .setMessage("即将安装：" + fileName + "\n安装将在后台进行，可在通知栏查看进度\n请确认文件来源可靠")
                 .setPositiveButton("确认安装", (d, w) -> {
-                    showInstallProgressDialog();
-                    new Thread(() -> {
-                        try {
-                            performInstall(fileName);
-                            requireActivity().runOnUiThread(() -> {
-                                dismissInstallProgressDialog();
-                                showToast("✔ 安装完成");
-                                currentCategory = installCategory;
-                                int pos = Arrays.asList(FILE_TYPES).indexOf(currentCategory);
-                                if (pos >= 0) categorySpinner.setSelection(pos);
-                                refreshFileList();
-                            });
-                        } catch (Exception e) {
-                            requireActivity().runOnUiThread(() -> {
-                                dismissInstallProgressDialog();
-                                showToast("✘ 安装失败: " + e.getMessage());
-                            });
-                        }
-                    }).start();
+                    // 启动后台安装服务
+                    InstallService.startInstall(
+                            requireContext(),
+                            selectedFileUri,
+                            fileName,
+                            installCategory,
+                            baseFilesPath
+                    );
+                    showToast("已开始后台安装，通知栏查看进度");
                 })
                 .setNegativeButton("取消操作", null)
                 .show();
