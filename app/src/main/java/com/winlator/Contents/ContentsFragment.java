@@ -437,26 +437,168 @@ public class ContentsFragment extends Fragment {
         item.setOrientation(LinearLayout.HORIZONTAL);
         int cardBgColor = getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#FFFFFF"), Color.parseColor("#121212"));
         item.setBackground(createRoundedBackground(cardBgColor, CORNER_RADIUS_DP));
-        item.setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12));
+        item.setPadding(dpToPx(16), dpToPx(14), dpToPx(16), dpToPx(14));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             item.setElevation(dpToPx(ELEVATION_DP / 2));
         }
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(0, 0, 0, dpToPx(8));
+        lp.setMargins(0, 0, 0, dpToPx(10));
         item.setLayoutParams(lp);
+
+        // 组件图标（按类型显示首字母+主题色背景）
+        TextView iconView = new TextView(requireContext());
+        iconView.setText(getCategoryIcon(currentCategory));
+        iconView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        iconView.setTextColor(Color.WHITE);
+        iconView.setTypeface(Typeface.DEFAULT_BOLD);
+        iconView.setGravity(Gravity.CENTER);
+        int iconSize = dpToPx(44);
+        iconView.setLayoutParams(new LinearLayout.LayoutParams(iconSize, iconSize));
+        iconView.setBackground(createRoundedBackground(getCategoryColor(currentCategory), 12));
+        item.addView(iconView);
+
+        // 中间信息区：名称 + 描述/大小
+        LinearLayout infoLayout = new LinearLayout(requireContext());
+        infoLayout.setOrientation(LinearLayout.VERTICAL);
+        infoLayout.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        infoLayout.setPadding(dpToPx(14), 0, dpToPx(8), 0);
 
         TextView tv = new TextView(requireContext());
         tv.setText(name);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        tv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        item.addView(tv);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        tv.setTextColor(getColorFromAttr(android.R.attr.colorPrimaryText, Color.parseColor("#212121"), Color.parseColor("#FFFFFF")));
+        tv.setTypeface(Typeface.DEFAULT_BOLD);
+        tv.setMaxLines(1);
+        tv.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        infoLayout.addView(tv);
+
+        // 描述行：类型 + 大小
+        TextView descView = new TextView(requireContext());
+        String fileSize = getFileSizeString(name);
+        String categoryName = getCategoryDisplayName(currentCategory);
+        descView.setText(categoryName + (fileSize != null ? " · " + fileSize : ""));
+        descView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        descView.setTextColor(getColorFromAttr(android.R.attr.colorSecondaryText, Color.parseColor("#757575"), Color.parseColor("#B0B0B0")));
+        descView.setMaxLines(1);
+        descView.setPadding(0, dpToPx(2), 0, 0);
+        infoLayout.addView(descView);
+
+        item.addView(infoLayout);
+
+        // 右侧状态标识
+        TextView statusView = new TextView(requireContext());
+        statusView.setText("已安装");
+        statusView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        statusView.setTextColor(Color.parseColor("#4CAF50"));
+        statusView.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
+        statusView.setBackground(createRoundedBackground(Color.parseColor("#E8F5E9"), 8));
+        item.addView(statusView);
 
         item.setOnLongClickListener(v -> {
             showDeleteDialog(name);
             return true;
         });
         fileListContainer.addView(item);
+    }
+
+    /**
+     * 获取组件类型图标（首字母）
+     */
+    private String getCategoryIcon(String category) {
+        switch (category.toLowerCase()) {
+            case "dxvk": return "D";
+            case "box64": return "B";
+            case "turnip": return "T";
+            case "virgl": return "V";
+            case "vkd3d": return "K";
+            case "wine": return "W";
+            case "proton": return "P";
+            default: return "?";
+        }
+    }
+
+    /**
+     * 获取组件类型主题色
+     */
+    private int getCategoryColor(String category) {
+        switch (category.toLowerCase()) {
+            case "dxvk": return Color.parseColor("#673AB7"); // 紫色
+            case "box64": return Color.parseColor("#FF9800"); // 橙色
+            case "turnip": return Color.parseColor("#4CAF50"); // 绿色
+            case "virgl": return Color.parseColor("#2196F3"); // 蓝色
+            case "vkd3d": return Color.parseColor("#E91E63"); // 粉色
+            case "wine": return Color.parseColor("#F44336"); // 红色
+            case "proton": return Color.parseColor("#00BCD4"); // 青色
+            default: return Color.parseColor("#607D8B"); // 灰色
+        }
+    }
+
+    /**
+     * 获取组件类型显示名称
+     */
+    private String getCategoryDisplayName(String category) {
+        switch (category.toLowerCase()) {
+            case "dxvk": return "DXVK 翻译层";
+            case "box64": return "Box64 模拟器";
+            case "turnip": return "Turnip 驱动";
+            case "virgl": return "VirGL 渲染器";
+            case "vkd3d": return "VKD3D 翻译层";
+            case "wine": return "Wine 运行环境";
+            case "proton": return "Proton 运行环境";
+            default: return category;
+        }
+    }
+
+    /**
+     * 获取文件大小字符串
+     */
+    private String getFileSizeString(String name) {
+        try {
+            File file;
+            if (isWineOrProton(currentCategory)) {
+                file = new File(baseFilesPath, currentStoragePath + File.separator + currentInstallPath + File.separator + name);
+            } else {
+                file = new File(baseFilesPath, currentStoragePath + File.separator + currentInstallPath + File.separator + name + TZSD_EXTENSION);
+            }
+            if (!file.exists()) return null;
+            long size = getFolderSize(file);
+            return formatFileSize(size);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 递归计算文件夹大小
+     */
+    private long getFolderSize(File file) {
+        if (file == null || !file.exists()) return 0;
+        if (file.isFile()) return file.length();
+        long size = 0;
+        File[] children = file.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                size += getFolderSize(child);
+            }
+        }
+        return size;
+    }
+
+    /**
+     * 格式化文件大小
+     */
+    private String formatFileSize(long bytes) {
+        if (bytes <= 0) return "0 B";
+        final String[] units = {"B", "KB", "MB", "GB"};
+        int unitIndex = 0;
+        double size = bytes;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+        }
+        if (unitIndex == 0) return String.format(java.util.Locale.US, "%d %s", (long)size, units[unitIndex]);
+        return String.format(java.util.Locale.US, "%.1f %s", size, units[unitIndex]);
     }
 
     private void showDeleteDialog(String name) {
