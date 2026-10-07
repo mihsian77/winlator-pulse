@@ -139,8 +139,6 @@ public class ContainerManager {
         dstContainer.setRootDir(dstDir);
         dstContainer.setName(srcContainer.getName()+" ("+context.getString(R.string.copy)+")");
         dstContainer.setScreenSize(srcContainer.getScreenSize());
-        dstContainer.setScreenOrientation(srcContainer.getScreenOrientation());
-        dstContainer.setSwapResolution(srcContainer.isSwapResolution());
         dstContainer.setEnvVars(srcContainer.getEnvVars());
         dstContainer.setCPUList(srcContainer.getCPUList());
         dstContainer.setCPUListWoW64(srcContainer.getCPUListWoW64());
@@ -155,7 +153,6 @@ public class ContainerManager {
         dstContainer.setHUDMode(srcContainer.getHUDMode());
         dstContainer.setStartupSelection(srcContainer.getStartupSelection());
         dstContainer.setBox64Preset(srcContainer.getBox64Preset());
-        dstContainer.setBox64Version(srcContainer.getBox64Version());
         dstContainer.setDesktopTheme(srcContainer.getDesktopTheme());
         dstContainer.saveData();
 
@@ -245,18 +242,6 @@ public class ContainerManager {
             File dstFile = new File(containerDir, ".wine/drive_c/windows/"+dstName+"/"+dlname);
             FileUtils.copy(new File(srcDir, dlname), dstFile);
         }
-    }
-
-    // 恢复精简备份包后:把主 wine 版本的 common dll 补回 system32/syswow64,保证容器可直接启动
-    // 非主 wine 版本不处理(其 dll 需从对应 container-pattern 重建,避免版本错配)
-    public void restoreCommonDlls(File containerDir, String wineVersion) {
-        if (!WineInfo.isMainWineVersion(wineVersion)) return;
-        try {
-            JSONObject commonDlls = new JSONObject(FileUtils.readString(context, "common_dlls.json"));
-            copyCommonDlls("x86_64-windows", "system32", commonDlls, containerDir);
-            copyCommonDlls("i386-windows", "syswow64", commonDlls, containerDir);
-        }
-        catch (JSONException e) {}
     }
 
     private boolean extractContainerPatternFile(String wineVersion, File containerDir) {

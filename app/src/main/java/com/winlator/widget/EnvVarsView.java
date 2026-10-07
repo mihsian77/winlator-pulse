@@ -27,30 +27,20 @@ import java.util.Arrays;
 
 public class EnvVarsView extends FrameLayout {
     public static final String[][] knownEnvVars = {
-        {"LC_ALL", "SELECT", "zh_CN.utf8", "zh_TW.utf8", "en_US.utf8", "ja_JP.utf8", "sr_RS.utf8", "ru_RU.utf8"},
-        {"TZ", "SELECT", "Asia/Shanghai", "Asia/Tokyo", "Europe/Berlin", "America/New_York"},
-        {"MESA_GL_VERSION_OVERRIDE", "SELECT", "4.6COMPAT", "3.3COMPAT", "4.5", "4.6", "3.3", "3.2", "2.1", "auto"},
         {"ZINK_DESCRIPTORS", "SELECT", "auto", "lazy", "cached", "notemplates"},
         {"ZINK_DEBUG", "SELECT_MULTIPLE", "nir", "spirv", "tgsi", "validation", "sync", "compact", "noreorder"},
         {"ZINK_CONTEXT_THREADED", "CHECKBOX", "0", "1"},
         {"WINEESYNC", "CHECKBOX", "0", "1"},
         {"WINEDLLOVERRIDES", "TEXT"},
-        {"TU_DEBUG", "SELECT_MULTIPLE", "startup", "nir", "nofsdt", "nobin", "sysmem", "gmem", "forcebin", "layout", "noubwc", "nomultipos", "nolrz", "nolrzfc", "perf", "perfc", "flushall", "syncdraw", "push_consts_per_stage", "rast_order", "unaligned_store", "log_skip_gmem_ops", "dynamic", "bos", "3d_load", "fdm", "noconform", "rd"},
+        {"TU_DEBUG", "SELECT_MULTIPLE", "startup", "nir", "nobin", "sysmem", "gmem", "forcebin", "layout", "noubwc", "nomultipos", "nolrz", "nolrzfc", "perf", "perfc", "flushall", "syncdraw", "push_consts_per_stage", "rast_order", "unaligned_store", "log_skip_gmem_ops", "dynamic", "bos", "3d_load", "fdm", "noconform", "rd"},
         {"DXVK_HUD", "SELECT_MULTIPLE", "devinfo", "fps", "frametimes", "submissions", "drawcalls", "pipelines", "descriptors", "memory", "gpuload", "version", "api", "cs", "compiler", "samplers"},
         {"DXVK_LOG_LEVEL", "SELECT", "none", "error", "warn", "info", "debug"},
-        {"GST_DEBUG", "SELECT", "0", "1", "2", "3", "4", "5"},
         {"DXVK_ASYNC", "CHECKBOX", "0", "1"},
-        {"DXVK_DISABLE_TIMELINE_SEMAPHORES", "SELECT", "1", "0"},
         {"GALLIUM_HUD", "TEXT"},
         {"MESA_SHADER_CACHE_DISABLE", "CHECKBOX", "false", "true"},
         {"mesa_glthread", "CHECKBOX", "false", "true"},
-        {"MESA_SHADER_CACHE_MAX_SIZE", "SELECT", "512MB", "1024MB", "2048MB", "4096MB"},
-        {"MESA_VK_WSI_DEBUG", "SELECT", "-sw", "sw"},
-        {"LIBGL_ALWAYS_SOFTWARE", "CHECKBOX", "0", "1"},
-        {"BOX64_MMAP32", "CHECKBOX", "0", "1"},
-        {"DRAW_USE_LLVM", "CHECKBOX", "0", "1"},
-        {"MANGOHUD", "CHECKBOX", "0", "1"},
-        {"MESA_EXTENSION_MAX_YEAR", "SELECT", "2001", "2003", "2008", "2015", "2025"},
+        {"MESA_EXTENSION_MAX_YEAR", "NUMBER"},
+        {"MESA_GL_VERSION_OVERRIDE", "TEXT"},
         {"PULSE_LATENCY_MSEC", "NUMBER"},
     };
     private final LinearLayout container;

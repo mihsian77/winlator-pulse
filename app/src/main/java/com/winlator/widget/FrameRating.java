@@ -1,30 +1,36 @@
 package com.winlator.widget;
 
-import android.app.Activity;
+import android.app.ActivityManager;
 import android.content.Context;
-import android.graphics.Color;
+import android.os.SystemClock;
 import android.util.AttributeSet;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
-import com.winlator.hud.WinlatorHUD;
+import com.winlator.R;
+import com.winlator.box64.Box64Utils;
+import com.winlator.core.CPUStatus;
+import com.winlator.core.StringUtils;
 
-/**
- * FrameRating —— WinlatorHUD v3.0 的兼容包装器。
- *
- * v3.0 的 WinlatorHUD 是静态类（内部 HUDView 自动加到 decorView），
- * 本类保留上游全部接口（Mode / setMode / update / setGPUInfo / reset / refreshSettings），
- * XServerDisplayActivity 无需任何修改。
- *
- * 修改原因：上游 HUD 简陋且布局尺寸错误（frame_rating.xml 根布局 match_parent 覆盖整块桌面）；
- * 影响范围：本文件 + com.winlator.hud.WinlatorHUD（v3.0）；
- * 回滚方法：恢复上游 FrameRating.java，删除 WinlatorHUD.java。
- */
-public class FrameRating extends FrameLayout {
+import java.util.Locale;
 
+public class FrameRating extends FrameLayout implements Runnable {
     public enum Mode {DISABLED, SIMPLE, FULL}
-
-    private Mode mode = Mode.DISABLED;
-    private final Activity activity;
+    private long lastTime = 0;
+    private short frameCount = 0;
+    private float lastFPS = 0;
+    private final LinearLayout fpsPanel;
+    private final LinearLayout gpuPanel;
+    private final LinearLayout ramPanel;
+    private final LinearLayout cpuPanel;
+    private Mode mode = Mode.SIMPLE;
+    private ActivityManager activityManager;
+    private ActivityManager.MemoryInfo memoryInfo;
+    private String cpuInfo = null;
+    private byte tick = 0;
 
     public FrameRating(Context context) {
         this(context, null);
@@ -36,9 +42,47 @@ public class FrameRating extends FrameLayout {
 
     public FrameRating(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        activity = (Activity) context;
-        // 不 inflate frame_rating.xml，避免 match_parent 根布局覆盖整块桌面
-        setBackgroundColor(Color.TRANSPARENT);
+
+        View view = LayoutInflater.from(context).inflate(R.layout.frame_rating, this, false);
+        fpsPanel = view.findViewById(R.id.LLFPSPanel);
+        gpuPanel = view.findViewById(R.id.LLGPUPanel);
+        ramPanel = view.findViewById(R.id.LLRAMPanel);
+        cpuPanel = view.findViewById(R.id.LLCPUPanel);
+        addView(view);
+        setupPanels();
+    }
+
+    private void setupPanels() {
+        switch (mode) {
+            case DISABLED:
+                fpsPanel.setVisibility(GONE);
+                gpuPanel.setVisibility(GONE);
+                ramPanel.setVisibility(GONE);
+                cpuPanel.setVisibility(GONE);
+                
+                activityManager = null;
+                memoryInfo = null;
+                break;
+            case SIMPLE:
+                fpsPanel.setVisibility(VISIBLE);
+                gpuPanel.setVisibility(GONE);
+                ramPanel.setVisibility(GONE);
+                cpuPanel.setVisibility(GONE);
+
+                activityManager = null;
+                memoryInfo = null;
+                break;
+            case FULL:
+                fpsPanel.setVisibility(VISIBLE);
+                gpuPanel.setVisibility(VISIBLE);
+                ramPanel.setVisibility(VISIBLE);
+                cpuPanel.setVisibility(VISIBLE);
+
+                Context context = getContext();
+                activityManager = (ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);
+                memoryInfo = new ActivityManager.MemoryInfo();
+                break;
+        }
     }
 
     public Mode getMode() {
@@ -47,71 +91,52 @@ public class FrameRating extends FrameLayout {
 
     public void setMode(Mode mode) {
         this.mode = mode;
-        switch (mode) {
-            case DISABLED:
-                WinlatorHUD.setVisible(false);
-                break;
-            case SIMPLE:
-                ensureInitialized(WinlatorHUD.DENSITY_COMPACT);
-                WinlatorHUD.setDensity(WinlatorHUD.DENSITY_COMPACT);
-                WinlatorHUD.setVisible(true);
-                break;
-            case FULL:
-                ensureInitialized(WinlatorHUD.DENSITY_DETAILED);
-                WinlatorHUD.setDensity(WinlatorHUD.DENSITY_DETAILED);
-                WinlatorHUD.setVisible(true);
-                break;
-        }
+        setupPanels();
     }
 
-    private void ensureInitialized(int density) {
-        if (!WinlatorHUD.isInitialized()) {
-            WinlatorHUD.init(activity, WinlatorHUD.SHOW_DEFAULT, density, WinlatorHUD.ORIENT_HORIZONTAL);
-        }
-    }
-
-    /**
-     * 刷新设置。WinlatorHUD 内部 HandlerThread 每 500ms 自动更新指标，无需手动刷新。
-     * 保留此方法仅为兼容上游接口。
-     */
-    public void refreshSettings() {
-        // 无操作
-    }
-
-    /**
-     * 设置 GPU/驱动信息，显示在 HUD 上。
-     */
     public void setGPUInfo(String gpuInfo) {
-        if (gpuInfo != null && !gpuInfo.isEmpty()) {
-            WinlatorHUD.setGameInfo(gpuInfo, null, null);
-        }
+        post(() -> ((TextView)gpuPanel.getChildAt(1)).setText(gpuInfo));
     }
 
-    /**
-     * 重置 FPS 统计。
-     * 上游在 changeFrameRatingVisibility（渲染线程）找到游戏窗口后调用此方法，
-     * 可见性操作必须 post 到 UI 线程，否则在渲染线程操作 View 会导致 SurfaceView 黑屏。
-     */
     public void reset() {
-        WinlatorHUD.reset();
-        post(() -> WinlatorHUD.setVisible(true));
+        frameCount = 0;
+        lastTime = SystemClock.elapsedRealtime();
+        lastFPS = 0;
+        tick = 2;
     }
 
-    /**
-     * 每帧调用，记录帧时间用于 FPS 计算。
-     * onUpdateWindowContent 在渲染线程调用，可见性操作必须 post 到 UI 线程。
-     */
     public void update() {
-        WinlatorHUD.recordFrame();
-        post(() -> WinlatorHUD.setVisible(true));
+        long time = SystemClock.elapsedRealtime();
+        if (time >= lastTime + 500) {
+            lastFPS = ((float)(frameCount * 1000) / (time - lastTime));
+            post(this);
+            lastTime = time;
+            frameCount = 0;
+        }
+
+        frameCount++;
     }
 
-    /**
-     * 转发上游的可见性控制到 WinlatorHUD。
-     */
     @Override
-    public void setVisibility(int visibility) {
-        super.setVisibility(visibility);
-        WinlatorHUD.setVisible(visibility == VISIBLE);
+    public void run() {
+        if (getVisibility() == GONE) setVisibility(View.VISIBLE);
+        ((TextView)fpsPanel.getChildAt(1)).setText(String.format(Locale.ENGLISH, "%.1f", lastFPS));
+
+        if (mode == Mode.FULL && ++tick >= 2) {
+            tick = 0;
+            activityManager.getMemoryInfo(memoryInfo);
+            long usedMem = memoryInfo.totalMem - memoryInfo.availMem;
+            String ramText = StringUtils.formatBytes(usedMem, false)+"/"+StringUtils.formatBytes(memoryInfo.totalMem);
+            ((TextView)ramPanel.getChildAt(1)).setText(ramText);
+
+            if (cpuInfo == null) {
+                cpuInfo = "Box64 v"+ Box64Utils.extractBinVersion(cpuPanel.getContext());
+            }
+
+            short[] clockSpeeds = CPUStatus.getCurrentClockSpeeds();
+            int maxClockSpeed = 0;
+            for (short clockSpeed : clockSpeeds) maxClockSpeed = Math.max(maxClockSpeed, clockSpeed);
+            ((TextView)cpuPanel.getChildAt(1)).setText(CPUStatus.formatClockSpeed(maxClockSpeed)+" | "+cpuInfo);
+        }
     }
 }

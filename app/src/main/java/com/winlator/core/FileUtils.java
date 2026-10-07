@@ -173,17 +173,12 @@ public abstract class FileUtils {
             File parent = dstFile.getParentFile();
             if (!srcFile.exists() || (parent != null && !parent.exists() && !parent.mkdirs())) return false;
 
-            // 使用 try-with-resources 保证异常时也能释放文件描述符
-            try (FileChannel inChannel = (new FileInputStream(srcFile)).getChannel();
-                 FileChannel outChannel = (new FileOutputStream(dstFile)).getChannel()) {
-                // transferTo 单次调用不保证传完整个通道，需循环直到写完
-                long size = inChannel.size();
-                long position = 0;
-                while (position < size) {
-                    long transferred = inChannel.transferTo(position, size - position, outChannel);
-                    if (transferred <= 0) break;
-                    position += transferred;
-                }
+            try {
+                FileChannel inChannel = (new FileInputStream(srcFile)).getChannel();
+                FileChannel outChannel = (new FileOutputStream(dstFile)).getChannel();
+                inChannel.transferTo(0, inChannel.size(), outChannel);
+                inChannel.close();
+                outChannel.close();
 
                 if (callback != null) callback.call(dstFile);
                 return dstFile.exists();
@@ -253,7 +248,7 @@ public abstract class FileUtils {
     }
 
     public static String getBasename(String path) {
-        return getName(path).replaceFirst("\\.[^\\.]+", "");
+        return getName(path).replaceFirst("\\.[^\\.]+$", "");
     }
 
     public static String getDirname(String path) {
@@ -287,20 +282,6 @@ public abstract class FileUtils {
             if (parts[0].equalsIgnoreCase("primary")) path = Environment.getExternalStorageDirectory() + "/" + parts[1];
         }
         return path;
-    }
-
-    public static File copyUriToTempFile(Context context, Uri uri, String prefix) {
-        File tempFile = createTempFile(context.getCacheDir(), prefix);
-        if (tempFile == null) return null;
-        try (InputStream inStream = context.getContentResolver().openInputStream(uri);
-             BufferedOutputStream outStream = new BufferedOutputStream(new FileOutputStream(tempFile), StreamUtils.BUFFER_SIZE)) {
-            StreamUtils.copy(inStream, outStream);
-            return tempFile;
-        }
-        catch (IOException e) {
-            delete(tempFile);
-            return null;
-        }
     }
 
     public static boolean contentEquals(File origin, File target) {
@@ -403,7 +384,7 @@ public abstract class FileUtils {
         try {
             try (RandomAccessFile reader = new RandomAccessFile(path, "r")) {
                 String line = reader.readLine();
-                result = line != null && !line.isEmpty() ? Integer.parseInt(line.trim()) : 0;
+                result = !line.isEmpty() ? Integer.parseInt(line) : 0;
             }
         }
         catch (Exception e) {}
@@ -429,8 +410,7 @@ public abstract class FileUtils {
         Intent intent;
         if (path.startsWith("file://")) {
             File file = new File(Uri.decode(path.replace("file://", "")));
-            // 共存版修复：FileProvider authorities 跟随 ${applicationId}，不能硬编码 com.winlator
-            intent = new Intent(Intent.ACTION_VIEW, FileProvider.getUriForFile(activity, activity.getPackageName() + ".FileProvider", file));
+            intent = new Intent(Intent.ACTION_VIEW, FileProvider.getUriForFile(activity, "com.winlator.FileProvider", file));
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         }
         else intent = new Intent(Intent.ACTION_VIEW, Uri.parse(path));

@@ -1,6 +1,5 @@
 package com.winlator.contentdialog;
 
-import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,7 +11,6 @@ import android.widget.TextView;
 
 import com.winlator.R;
 import com.winlator.XServerDisplayActivity;
-import com.winlator.core.AppUtils;
 import com.winlator.core.ImageUtils;
 import com.winlator.core.UnitUtils;
 import com.winlator.renderer.GLRenderer;
@@ -32,14 +30,6 @@ public class ActiveWindowsDialog extends ContentDialog {
         setCancelable(false);
         setTitle(R.string.active_windows);
         setIcon(R.drawable.icon_active_windows);
-
-        FrameLayout frameLayout = findViewById(R.id.FrameLayout);
-        int orientation = activity.getResources().getConfiguration().orientation;
-        if (orientation == Configuration.ORIENTATION_PORTRAIT) {
-            frameLayout.getLayoutParams().width = AppUtils.getPreferredDialogWidth(activity);
-        } else {
-            frameLayout.getLayoutParams().width = (int)UnitUtils.dpToPx(430);
-        }
 
         Button showDesktopButton = findViewById(R.id.BTCancel);
         showDesktopButton.setVisibility(View.VISIBLE);

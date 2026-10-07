@@ -83,7 +83,6 @@ public abstract class ArrayUtils {
             if (i < length) {
                 int j = i + 1;
                 int end = j + value.length - 1;
-                if (end > length) break;
                 for (int k = 1; j < end && array[j] == value[k]; j++, k++);
                 if (j == end) return i;
             }

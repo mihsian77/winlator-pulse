@@ -206,14 +206,8 @@ public class InputControlsManager {
             String profileName = null;
             float cursorSpeed = Float.NaN;
             boolean disableMouseInput = false;
-            byte touchpadMode = 0;
-            boolean moveCursorToTouchpoint = false;
-            boolean twoFingersDrag = true;
-            boolean twoFingersRightClick = true;
-            boolean longPressRightClick = true;
-            boolean pinchZoomEnabled = false;
-            boolean shortDragEnabled = false;
-            boolean twoFingersScroll = true;
+            int fieldsRead = 0;
+            final byte numFieldsToBreak = 4;
 
             reader.beginObject();
             while (reader.hasNext()) {
@@ -221,57 +215,30 @@ public class InputControlsManager {
 
                 if (name.equals("id")) {
                     profileId = reader.nextInt();
+                    fieldsRead++;
                 }
                 else if (name.equals("name")) {
                     profileName = reader.nextString();
+                    fieldsRead++;
                 }
                 else if (name.equals("cursorSpeed")) {
                     cursorSpeed = (float)reader.nextDouble();
+                    fieldsRead++;
                 }
                 else if (name.equals("disableMouseInput")) {
                     disableMouseInput = reader.nextBoolean();
-                }
-                else if (name.equals("touchpadMode")) {
-                    touchpadMode = (byte)reader.nextInt();
-                }
-                else if (name.equals("moveCursorToTouchpoint")) {
-                    moveCursorToTouchpoint = reader.nextBoolean();
-                }
-                else if (name.equals("twoFingersDrag")) {
-                    twoFingersDrag = reader.nextBoolean();
-                }
-                else if (name.equals("twoFingersRightClick")) {
-                    twoFingersRightClick = reader.nextBoolean();
-                }
-                else if (name.equals("longPressRightClick")) {
-                    longPressRightClick = reader.nextBoolean();
-                }
-                else if (name.equals("pinchZoomEnabled")) {
-                    pinchZoomEnabled = reader.nextBoolean();
-                }
-                else if (name.equals("shortDragEnabled")) {
-                    shortDragEnabled = reader.nextBoolean();
-                }
-                else if (name.equals("twoFingersScroll")) {
-                    twoFingersScroll = reader.nextBoolean();
+                    fieldsRead++;
                 }
                 else {
+                    if (fieldsRead == numFieldsToBreak) break;
                     reader.skipValue();
                 }
             }
 
             ControlsProfile profile = new ControlsProfile(context, profileId);
             profile.setName(profileName);
-            if (!Float.isNaN(cursorSpeed)) profile.setCursorSpeed(cursorSpeed);
+            profile.setCursorSpeed(cursorSpeed);
             profile.setDisableMouseInput(disableMouseInput);
-            profile.setTouchpadMode(touchpadMode);
-            profile.setMoveCursorToTouchpoint(moveCursorToTouchpoint);
-            profile.setTwoFingersDrag(twoFingersDrag);
-            profile.setTwoFingersRightClick(twoFingersRightClick);
-            profile.setLongPressRightClick(longPressRightClick);
-            profile.setPinchZoomEnabled(pinchZoomEnabled);
-            profile.setShortDragEnabled(shortDragEnabled);
-            profile.setTwoFingersScroll(twoFingersScroll);
             return profile;
         }
         catch (IOException e) {

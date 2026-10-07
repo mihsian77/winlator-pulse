@@ -2,7 +2,7 @@
 <resources>
     <string-array name="screen_size_entries">
         <item>@string/custom</item>
-        <item>@string/system_resolution</item>
+        <item>@string/native_resolution</item>
         <item>640x360 (16:9)</item>
         <item>640x480 (4:3)</item>
         <item>800x600 (4:3)</item>
@@ -16,60 +16,6 @@
         <item>1440x900 (16:10)</item>
         <item>1600x900 (16:9)</item>
         <item>1920x1080 (16:9)</item>
-    </string-array>
-    <string-array name="refresh_rate_entries">
-        <item>@string/system_max_refresh</item>
-        <item>60 Hz</item>
-        <item>90 Hz</item>
-        <item>120 Hz</item>
-        <item>144 Hz</item>
-    </string-array>
-    <!-- 容器内语言环境（LC_ALL） -->
-    <string-array name="lc_all_entries">
-        <item>简体中文 (zh_CN.utf8)</item>
-        <item>繁体中文 (zh_TW.utf8)</item>
-        <item>英语 (en_US.utf8)</item>
-        <item>日语 (ja_JP.utf8)</item>
-        <item>韩语 (ko_KR.utf8)</item>
-        <item>俄语 (ru_RU.utf8)</item>
-    </string-array>
-    <string-array name="lc_all_values">
-        <item>zh_CN.utf8</item>
-        <item>zh_TW.utf8</item>
-        <item>en_US.utf8</item>
-        <item>ja_JP.utf8</item>
-        <item>ko_KR.utf8</item>
-        <item>ru_RU.utf8</item>
-    </string-array>
-    <!-- 容器内时区（TZ） -->
-    <string-array name="timezone_entries">
-        <item>中国标准时间 (Asia/Shanghai)</item>
-        <item>中国香港 (Asia/Hong_Kong)</item>
-        <item>中国台北 (Asia/Taipei)</item>
-        <item>日本 (Asia/Tokyo)</item>
-        <item>韩国 (Asia/Seoul)</item>
-        <item>美国东部 (America/New_York)</item>
-        <item>美国西部 (America/Los_Angeles)</item>
-        <item>英国 (Europe/London)</item>
-        <item>德国 (Europe/Berlin)</item>
-        <item>俄罗斯 (Europe/Moscow)</item>
-    </string-array>
-    <string-array name="timezone_values">
-        <item>Asia/Shanghai</item>
-        <item>Asia/Hong_Kong</item>
-        <item>Asia/Taipei</item>
-        <item>Asia/Tokyo</item>
-        <item>Asia/Seoul</item>
-        <item>America/New_York</item>
-        <item>America/Los_Angeles</item>
-        <item>Europe/London</item>
-        <item>Europe/Berlin</item>
-        <item>Europe/Moscow</item>
-    </string-array>
-    <string-array name="screen_orientation_entries">
-        <item>@string/landscape</item>
-        <item>@string/portrait</item>
-        <item>@string/auto</item>
     </string-array>
     <string-array name="audio_driver_entries">
         <item>ALSA</item>
@@ -191,7 +137,6 @@
         <item>1.1</item>
         <item>1.2</item>
         <item>1.3</item>
-        <item>1.4</item>
     </string-array>
     <string-array name="midi_channel_entries">
         <item>Ch1</item>
@@ -201,25 +146,12 @@
         <item>English</item>
         <item>Português</item>
         <item>Русский</item>
-        <item>中文</item>
     </string-array>
     <string-array name="resource_memory_type_entries">
         <item>@string/auto</item>
         <item>Opaque FD</item>
         <item>DMA Buffer</item>
         <item>Native Hardware Buffer</item>
-    </string-array>
-    <string-array name="clipboard_charset_entries">
-        <item>GBK</item>
-        <item>Shift_JIS</item>
-        <item>BIG5</item>
-        <item>UTF-8</item>
-        <item>Windows-1251</item>
-    </string-array>
-    <string-array name="touchpad_mode_entries">
-        <item>CP1 Direct touch</item>
-        <item>CP2 Direct touch（RA2)</item>
-        <item>V3(Dark)</item>
     </string-array>
     <string-array name="present_mode_entries">
         <item>immediate</item>

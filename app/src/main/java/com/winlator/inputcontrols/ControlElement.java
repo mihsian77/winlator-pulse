@@ -1,8 +1,6 @@
 package com.winlator.inputcontrols;
 
-import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -11,11 +9,9 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.view.MotionEvent;
-import android.util.Base64;
 
 import androidx.core.graphics.ColorUtils;
 
-import com.winlator.R;
 import com.winlator.core.Bitmask;
 import com.winlator.core.CubicBezierInterpolator;
 import com.winlator.math.Mathf;
@@ -23,7 +19,6 @@ import com.winlator.widget.InputControlsView;
 import com.winlator.widget.TouchpadView;
 import com.winlator.winhandler.MIDIHandler;
 import com.winlator.winhandler.WinHandler;
-import com.winlator.xserver.XServer;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -36,7 +31,6 @@ public class ControlElement {
     public static final float DPAD_DEAD_ZONE = 0.3f;
     public static final float STICK_SENSITIVITY = 3.0f;
     public static final float TRACKPAD_MIN_SPEED = 0.8f;
-    public static final short TAP_TRACKPAD_DEFAULT_DEAD_ZONE = 100;
     public static final float TRACKPAD_MAX_SPEED = 20.0f;
     public static final byte TRACKPAD_ACCELERATION_THRESHOLD = 4;
     public static final short BUTTON_MIN_TIME_TO_KEEP_PRESSED = 300;
@@ -47,82 +41,23 @@ public class ControlElement {
     public static final int FLAG_BOUNDING_BOX_NEEDS_UPDATE = 1<<4;
     public static final int FLAG_MOUSE_MOVE_MODE = 1<<5;
     public enum Type {
-        BUTTON, D_PAD, RANGE_BUTTON, STICK, TRACKPAD, TAP_TRACKPAD, MIDI_KEY, RADIAL_MENU;
+        BUTTON, D_PAD, RANGE_BUTTON, STICK, TRACKPAD, MIDI_KEY, RADIAL_MENU;
 
-        public String getName(Context context) {
-            switch (this) {
-                case BUTTON: return context.getString(R.string.element_type_button);
-                case D_PAD: return context.getString(R.string.element_type_d_pad);
-                case RANGE_BUTTON: return context.getString(R.string.element_type_range_button);
-                case STICK: return context.getString(R.string.element_type_stick);
-                case TRACKPAD: return context.getString(R.string.element_type_trackpad);
-                case TAP_TRACKPAD: return context.getString(R.string.element_type_tap_trackpad);
-                case MIDI_KEY: return context.getString(R.string.element_type_midi_key);
-                default: return context.getString(R.string.element_type_radial_menu);
-            }
-        }
-
-        public static String[] names(Context context) {
+        public static String[] names() {
             Type[] types = values();
             String[] names = new String[types.length];
-            for (int i = 0; i < types.length; i++) names[i] = types[i].getName(context);
+            for (int i = 0; i < types.length; i++) names[i] = types[i].name().replace("_", "-");
             return names;
         }
     }
     public enum Shape {
         CIRCLE, RECT, ROUND_RECT, SQUARE;
 
-        public String getName(Context context) {
-            switch (this) {
-                case CIRCLE: return context.getString(R.string.element_shape_circle);
-                case RECT: return context.getString(R.string.element_shape_rect);
-                case ROUND_RECT: return context.getString(R.string.element_shape_round_rect);
-                default: return context.getString(R.string.element_shape_square);
-            }
-        }
-
-        public static String[] names(Context context) {
+        public static String[] names() {
             Shape[] shapes = values();
             String[] names = new String[shapes.length];
-            for (int i = 0; i < shapes.length; i++) names[i] = shapes[i].getName(context);
+            for (int i = 0; i < shapes.length; i++) names[i] = shapes[i].name().replace("_", " ");
             return names;
-        }
-    }
-    public enum MouseBtn {
-        NONE, MOUSE_LEFT_BUTTON, MOUSE_RIGHT_BUTTON, MOUSE_MIDDLE_BUTTON;
-
-        public String getName(Context context) {
-            switch (this) {
-                case MOUSE_LEFT_BUTTON: return context.getString(R.string.element_mouse_btn_left);
-                case MOUSE_RIGHT_BUTTON: return context.getString(R.string.element_mouse_btn_right);
-                case MOUSE_MIDDLE_BUTTON: return context.getString(R.string.element_mouse_btn_middle);
-                default: return context.getString(R.string.element_mouse_btn_none);
-            }
-        }
-
-        public static String[] names(Context context) {
-            MouseBtn[] values = values();
-            String[] names = new String[values.length];
-            for (int i = 0; i < values.length; i++) names[i] = values[i].getName(context);
-            return names;
-        }
-
-        public Binding toBinding() {
-            switch (this) {
-                case MOUSE_LEFT_BUTTON: return Binding.MOUSE_LEFT_BUTTON;
-                case MOUSE_RIGHT_BUTTON: return Binding.MOUSE_RIGHT_BUTTON;
-                case MOUSE_MIDDLE_BUTTON: return Binding.MOUSE_MIDDLE_BUTTON;
-                default: return Binding.NONE;
-            }
-        }
-
-        public static MouseBtn fromBinding(Binding binding) {
-            switch (binding) {
-                case MOUSE_LEFT_BUTTON: return MOUSE_LEFT_BUTTON;
-                case MOUSE_RIGHT_BUTTON: return MOUSE_RIGHT_BUTTON;
-                case MOUSE_MIDDLE_BUTTON: return MOUSE_MIDDLE_BUTTON;
-                default: return NONE;
-            }
         }
     }
     public enum Range {
@@ -133,19 +68,10 @@ public class ControlElement {
             this.max = (byte)max;
         }
 
-        public String getName(Context context) {
-            switch (this) {
-                case FROM_A_TO_Z: return context.getString(R.string.element_range_a_z);
-                case FROM_0_TO_9: return context.getString(R.string.element_range_0_9);
-                case FROM_F1_TO_F12: return context.getString(R.string.element_range_f1_f12);
-                default: return context.getString(R.string.element_range_np0_np9);
-            }
-        }
-
-        public static String[] names(Context context) {
+        public static String[] names() {
             Range[] ranges = values();
             String[] names = new String[ranges.length];
-            for (int i = 0; i < ranges.length; i++) names[i] = ranges[i].getName(context);
+            for (int i = 0; i < ranges.length; i++) names[i] = ranges[i].name().replace("_", " ");
             return names;
         }
     }
@@ -157,26 +83,12 @@ public class ControlElement {
     private float opacity = 1.0f;
     private short x;
     private short y;
-    private float percentX;
-    private float percentY;
     private int currentPointerId = -1;
     private final Rect boundingBox = new Rect();
     private boolean[] states = new boolean[4];
     private final Bitmask propertyFlags = new Bitmask(new int[]{FLAG_BOUNDING_BOX_NEEDS_UPDATE});
     private String text = "";
-    private MouseBtn mouseBtn = MouseBtn.NONE;
-    private boolean isMouseBtnPressed = false;
-    private boolean isMouseBtnTriggered = false;
-    private short xDrift;
-    private short yDrift;
-    private short deadZone = TAP_TRACKPAD_DEFAULT_DEAD_ZONE;
     private byte iconId;
-    private String customIconData = "";
-    private Bitmap customIcon;
-    private int pressedColor = 0xff000000;
-    private int textColor = -1; // -1 = 未设置，无图标时的形状/文字使用默认半透明白
-    private float iconScale = 1.0f;
-    private float iconOpacity = 1.0f;
     private Range range;
     private byte orientation;
     private PointF currentPosition;
@@ -204,7 +116,6 @@ public class ControlElement {
                 bindings[3] = Binding.KEY_A;
                 break;
             case TRACKPAD:
-            case TAP_TRACKPAD:
                 bindings[0] = Binding.MOUSE_MOVE_UP;
                 bindings[1] = Binding.MOUSE_MOVE_RIGHT;
                 bindings[2] = Binding.MOUSE_MOVE_DOWN;
@@ -223,18 +134,6 @@ public class ControlElement {
         }
 
         iconId = 0;
-        mouseBtn = type == Type.TAP_TRACKPAD ? MouseBtn.MOUSE_LEFT_BUTTON : MouseBtn.NONE;
-        isMouseBtnPressed = false;
-        isMouseBtnTriggered = false;
-        xDrift = 0;
-        yDrift = 0;
-        deadZone = TAP_TRACKPAD_DEFAULT_DEAD_ZONE;
-        customIconData = "";
-        customIcon = null;
-        pressedColor = 0xff000000;
-        textColor = -1;
-        iconScale = 1.0f;
-        iconOpacity = 1.0f;
         range = null;
         propertyFlags.set(FLAG_BOUNDING_BOX_NEEDS_UPDATE);
     }
@@ -325,16 +224,10 @@ public class ControlElement {
             propertyFlags.set(FLAG_BOUNDING_BOX_NEEDS_UPDATE);
         }
         bindings[index] = binding;
-        if (binding == Binding.MOUSE_SWAPL_R_BUTTONS && iconId == 0) {
-            iconId = 12;
-        }
     }
 
     public void setBinding(Binding binding) {
         Arrays.fill(bindings, binding);
-        if (binding == Binding.MOUSE_SWAPL_R_BUTTONS && iconId == 0) {
-            iconId = 12;
-        }
     }
 
     public float getScale() {
@@ -372,22 +265,6 @@ public class ControlElement {
         propertyFlags.set(FLAG_BOUNDING_BOX_NEEDS_UPDATE);
     }
 
-    public float getPercentX() {
-        return percentX;
-    }
-
-    public void setPercentX(float percentX) {
-        this.percentX = percentX;
-    }
-
-    public float getPercentY() {
-        return percentY;
-    }
-
-    public void setPercentY(float percentY) {
-        this.percentY = percentY;
-    }
-
     public boolean isSelected() {
         return propertyFlags.isSet(FLAG_SELECTED);
     }
@@ -411,105 +288,6 @@ public class ControlElement {
 
     public void setIconId(int iconId) {
         this.iconId = (byte)iconId;
-    }
-
-    public MouseBtn getMouseBtn() {
-        return mouseBtn;
-    }
-
-    public void setMouseBtn(MouseBtn mouseBtn) {
-        this.mouseBtn = mouseBtn != null ? mouseBtn : MouseBtn.NONE;
-    }
-
-    public boolean isMouseBtnPressed() {
-        return isMouseBtnPressed;
-    }
-
-    public short getXDrift() {
-        return xDrift;
-    }
-
-    public void setXDrift(short xDrift) {
-        this.xDrift = xDrift;
-    }
-
-    public short getYDrift() {
-        return yDrift;
-    }
-
-    public void setYDrift(short yDrift) {
-        this.yDrift = yDrift;
-    }
-
-    public short getDeadZone() {
-        return deadZone;
-    }
-
-    public void setDeadZone(short deadZone) {
-        this.deadZone = deadZone;
-    }
-
-    public boolean hasCustomIcon() {
-        return customIconData != null && !customIconData.isEmpty();
-    }
-
-    public String getCustomIconData() {
-        return customIconData;
-    }
-
-    public void setCustomIconData(String customIconData) {
-        this.customIconData = customIconData != null ? customIconData : "";
-        customIcon = null;
-    }
-
-    public Bitmap getCustomIcon() {
-        customIcon = decodeCustomIcon(customIconData, customIcon);
-        return customIcon;
-    }
-
-    private Bitmap decodeCustomIcon(String iconData, Bitmap cachedIcon) {
-        if (cachedIcon == null && iconData != null && !iconData.isEmpty()) {
-            try {
-                byte[] data = Base64.decode(iconData, Base64.DEFAULT);
-                return BitmapFactory.decodeByteArray(data, 0, data.length);
-            }
-            catch (IllegalArgumentException e) {
-                return null;
-            }
-        }
-        return cachedIcon;
-    }
-
-    public int getPressedColor() {
-        return pressedColor;
-    }
-
-    public void setPressedColor(int pressedColor) {
-        this.pressedColor = Color.argb(255, Color.red(pressedColor), Color.green(pressedColor), Color.blue(pressedColor));
-    }
-
-    public int getTextColor() {
-        return textColor;
-    }
-
-    public void setTextColor(int textColor) {
-        this.textColor = Color.argb(255, Color.red(textColor), Color.green(textColor), Color.blue(textColor));
-    }
-
-    public float getIconScale() {
-        return iconScale;
-    }
-
-    public void setIconScale(float iconScale) {
-        this.iconScale = iconScale;
-    }
-
-    public float getIconOpacity() {
-        return iconOpacity;
-    }
-
-    public void setIconOpacity(float iconOpacity) {
-        this.iconOpacity = iconOpacity;
     }
 
     public Rect getBoundingBox() {
@@ -547,7 +325,6 @@ public class ControlElement {
                 break;
             }
             case TRACKPAD:
-            case TAP_TRACKPAD:
             case STICK: {
                 halfWidth = snappingSize * 6;
                 halfHeight = snappingSize * 6;
@@ -578,21 +355,9 @@ public class ControlElement {
         return boundingBox;
     }
 
-    private boolean isSwapMouseButtons() {
-        TouchpadView touchpadView = inputControlsView.getTouchpadView();
-        return touchpadView != null && touchpadView.isSwapMouseButtons();
-    }
-
-    private byte getEffectiveIconId() {
-        if (iconId > 0 && bindings[0] == Binding.MOUSE_SWAPL_R_BUTTONS) {
-            return (byte)(isSwapMouseButtons() ? 13 : 12);
-        }
-        return iconId;
-    }
-
     private String getBindingTextAt(int index) {
         Binding binding = getBindingAt(index);
-        String text = binding.getDisplayName(inputControlsView.getContext()).replace("NUMPAD ", "NP").replace("BUTTON ", "").replace("按键 ", "");
+        String text = binding.toString().replace("NUMPAD ", "NP").replace("BUTTON ", "");
         if (text.length() > 7) {
             String[] parts = text.split(" ");
             StringBuilder sb = new StringBuilder();
@@ -662,10 +427,8 @@ public class ControlElement {
         int snappingSize = inputControlsView.getSnappingSize();
         Paint paint = inputControlsView.getPaint();
         int lightColor = getLightColor();
-        // 普通状态颜色：设置了边框与文字颜色则优先使用，否则默认半透明白
-        int displayColor = textColor != -1 ? textColor : lightColor;
 
-        paint.setColor(propertyFlags.isSet(FLAG_SELECTED) ? getHighlightColor() : displayColor);
+        paint.setColor(propertyFlags.isSet(FLAG_SELECTED) ? getHighlightColor() : lightColor);
         paint.setStyle(Paint.Style.STROKE);
         float strokeWidth = snappingSize * 0.25f;
         paint.setStrokeWidth(strokeWidth);
@@ -674,10 +437,7 @@ public class ControlElement {
         switch (type) {
             case BUTTON:
             case MIDI_KEY: {
-                if (propertyFlags.isSet(FLAG_PRESSED)) {
-                    paint.setStyle(Paint.Style.FILL);
-                    paint.setColor(getPressedColorWithOpacity());
-                }
+                if (propertyFlags.isSet(FLAG_PRESSED)) paint.setStyle(Paint.Style.FILL);
 
                 float cx = boundingBox.centerX();
                 float cy = boundingBox.centerY();
@@ -701,16 +461,15 @@ public class ControlElement {
                     }
                 }
 
-                byte effectiveIconId = getEffectiveIconId();
-                if (hasCustomIcon() || iconId > 0) {
-                    drawIcon(canvas, cx, cy, boundingBox.width(), boundingBox.height(), getEffectiveIconId(), getCustomIcon(), true);
+                if (iconId > 0) {
+                    drawIcon(canvas, cx, cy, boundingBox.width(), boundingBox.height(), iconId, true);
                 }
                 else {
                     String text = getDisplayText();
                     paint.setTextSize(Math.min(getTextSizeForWidth(paint, text, boundingBox.width() - strokeWidth * 2), snappingSize * 2 * scale));
                     paint.setTextAlign(Paint.Align.CENTER);
                     paint.setStyle(Paint.Style.FILL);
-                    paint.setColor(propertyFlags.isSet(FLAG_PRESSED) ? getPressedColorWithOpacity() : displayColor);
+                    paint.setColor(propertyFlags.isSet(FLAG_PRESSED) ? getDarkColor() : lightColor);
                     canvas.drawText(text, x, (y - ((paint.descent() + paint.ascent()) * 0.5f)), paint);
                 }
                 break;
@@ -760,7 +519,7 @@ public class ControlElement {
             case RANGE_BUTTON: {
                 Range range = getRange();
                 int oldColor = paint.getColor();
-                int darkColor = getPressedColorWithOpacity();
+                int darkColor = getDarkColor();
 
                 float radius = snappingSize * 0.75f * scale;
                 float elementSize = scroller.getElementSize();
@@ -806,7 +565,7 @@ public class ControlElement {
                                 canvas.drawRect(startX, lineTop, startX + elementSize, lineBottom, paint);
                             }
 
-                            paint.setColor(pressed ? darkColor : displayColor);
+                            paint.setColor(pressed ? darkColor : lightColor);
                             paint.setTextSize(Math.min(getTextSizeForWidth(paint, text, elementSize - strokeWidth * 2), minTextSize));
                             paint.setTextAlign(Paint.Align.CENTER);
                             canvas.drawText(text, startX + elementSize * 0.5f, (y - ((paint.descent() + paint.ascent()) * 0.5f)), paint);
@@ -855,7 +614,7 @@ public class ControlElement {
                                 canvas.drawRect(lineLeft, startY, lineRight, startY + elementSize, paint);
                             }
 
-                            paint.setColor(pressed ? darkColor : displayColor);
+                            paint.setColor(pressed ? darkColor : lightColor);
                             paint.setTextSize(Math.min(getTextSizeForWidth(paint, text, boundingBox.width() - strokeWidth * 2), minTextSize));
                             paint.setTextAlign(Paint.Align.CENTER);
                             canvas.drawText(text, x, startY + elementSize * 0.5f - ((paint.descent() + paint.ascent()) * 0.5f), paint);
@@ -882,7 +641,7 @@ public class ControlElement {
 
                 short thumbRadius = (short) (snappingSize * 3.5f * scale);
                 paint.setStyle(Paint.Style.FILL);
-                paint.setColor(ColorUtils.setAlphaComponent(displayColor, 50));
+                paint.setColor(ColorUtils.setAlphaComponent(lightColor, 50));
                 canvas.drawCircle(thumbstickX, thumbstickY, thumbRadius, paint);
 
                 paint.setStyle(Paint.Style.STROKE);
@@ -899,35 +658,6 @@ public class ControlElement {
                 radius = (innerHeight / boundingBox.height()) * radius - (innerStrokeWidth * 0.5f + strokeWidth * 0.5f);
                 paint.setStrokeWidth(innerStrokeWidth);
                 canvas.drawRoundRect(boundingBox.left + offset, boundingBox.top + offset, boundingBox.right - offset, boundingBox.bottom - offset, radius, radius, paint);
-                break;
-            }
-            case TAP_TRACKPAD: {
-                // 触摸板底板（与 TRACKPAD 相同）
-                float radius = boundingBox.height() * 0.15f;
-                canvas.drawRoundRect(boundingBox.left, boundingBox.top, boundingBox.right, boundingBox.bottom, radius, radius, paint);
-                float offset = strokeWidth * 2.5f;
-                float innerStrokeWidth = strokeWidth * 2;
-                float innerHeight = boundingBox.height() - offset * 2;
-                radius = (innerHeight / boundingBox.height()) * radius - (innerStrokeWidth * 0.5f + strokeWidth * 0.5f);
-                paint.setStrokeWidth(innerStrokeWidth);
-                canvas.drawRoundRect(boundingBox.left + offset, boundingBox.top + offset, boundingBox.right - offset, boundingBox.bottom - offset, radius, radius, paint);
-
-                // 独属标记：中心点击圆点 + 波纹环（区分于普通触摸板 TRACKPAD）
-                int oldColor = paint.getColor();
-                boolean pressed = propertyFlags.isSet(FLAG_PRESSED) || isMouseBtnTriggered;
-                float cx = boundingBox.centerX();
-                float cy = boundingBox.centerY();
-                float dotRadius = Math.max(snappingSize * scale * 0.5f, boundingBox.width() * 0.06f);
-                float waveRadius = Math.min(boundingBox.width(), boundingBox.height()) * 0.17f;
-
-                paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(strokeWidth);
-                canvas.drawCircle(cx, cy, waveRadius, paint);
-
-                paint.setStyle(Paint.Style.FILL);
-                paint.setColor(pressed ? getPressedColorWithOpacity() : oldColor);
-                canvas.drawCircle(cx, cy, dotRadius, paint);
-                paint.setColor(oldColor);
                 break;
             }
             case RADIAL_MENU: {
@@ -974,7 +704,7 @@ public class ControlElement {
 
                 if (propertyFlags.isSet(FLAG_VISIBLE)) {
                     float minTextSize = snappingSize * 2 * scale;
-                    int darkColor = getPressedColorWithOpacity();
+                    int darkColor = getDarkColor();
                     paint.setStrokeCap(Paint.Cap.SQUARE);
                     canvas.drawPath(paths[0], paint);
                     paint.setStrokeCap(Paint.Cap.BUTT);
@@ -1000,7 +730,7 @@ public class ControlElement {
                             canvas.rotate(textAngle);
                             String text = getBindingTextAt(j++);
                             paint.setTextSize(Math.min(getTextSizeForWidth(paint, text, touchAreaRadius * 2), minTextSize));
-                            paint.setColor(propertyFlags.isSet(FLAG_PRESSED) ? darkColor : displayColor);
+                            paint.setColor(propertyFlags.isSet(FLAG_PRESSED) ? darkColor : lightColor);
                             canvas.drawText(text, 0, -((paint.descent() + paint.ascent()) * 0.5f), paint);
                             canvas.restore();
                         }
@@ -1008,7 +738,7 @@ public class ControlElement {
                         startAngle = endAngle;
                     }
 
-                    drawIcon(canvas, cx, cy, boundingBox.width() * 0.4f, boundingBox.width() * 0.4f, 17, null, false);
+                    drawIcon(canvas, cx, cy, boundingBox.width() * 0.4f, boundingBox.width() * 0.4f, 17, false);
                 }
                 else {
                     paint.setStyle(Paint.Style.FILL_AND_STROKE);
@@ -1024,25 +754,18 @@ public class ControlElement {
         }
     }
 
-    private void drawIcon(Canvas canvas, float cx, float cy, float width, float height, int iconId, Bitmap customIcon, boolean automargin) {
+    private void drawIcon(Canvas canvas, float cx, float cy, float width, float height, int iconId, boolean automargin) {
         Paint paint = inputControlsView.getPaint();
-        Bitmap icon = customIcon;
-        boolean isCustomIcon = icon != null;
-        if (icon == null && iconId > 0) icon = inputControlsView.getIcon((byte)iconId);
-        if (icon == null) return;
+        Bitmap icon = inputControlsView.getIcon((byte)iconId);
+        paint.setColorFilter(propertyFlags.isSet(FLAG_PRESSED) ? inputControlsView.getDarkColorFilter() : inputControlsView.getLightColorFilter());
         float snappingSize = inputControlsView.getSnappingSize();
         int margin = automargin ? (int)(snappingSize * (shape == Shape.CIRCLE || shape == Shape.SQUARE ? 2.0f : 1.0f) * scale) : 0;
-        int halfSize = (int)((Math.min(width, height) - margin) * 0.5f * iconScale);
-        int oldAlpha = paint.getAlpha();
-        float opacity = iconOpacity;
-        // 内置图标原色显示，按压时以透明度减半作为反馈（自定义图标保持原样）
-        if (!isCustomIcon && propertyFlags.isSet(FLAG_PRESSED)) opacity *= 0.5f;
-        paint.setAlpha((int)(Mathf.clamp(opacity, 0.0f, 1.0f) * 255));
+        int halfSize = (int)((Math.min(width, height) - margin) * 0.5f);
 
         Rect srcRect = new Rect(0, 0, icon.getWidth(), icon.getHeight());
         Rect dstRect = new Rect((int)(cx - halfSize), (int)(cy - halfSize), (int)(cx + halfSize), (int)(cy + halfSize));
         canvas.drawBitmap(icon, srcRect, dstRect, paint);
-        paint.setAlpha(oldAlpha);
+        paint.setColorFilter(null);
     }
 
     public JSONObject toJSONObject() {
@@ -1057,24 +780,11 @@ public class ControlElement {
             elementJSONObject.put("bindings", bindingsJSONArray);
             elementJSONObject.put("scale", Float.valueOf(scale));
             if (opacity < 1.0f) elementJSONObject.put("opacity", Float.valueOf(opacity));
-            float px = (float)x / inputControlsView.getMaxWidth();
-            float py = (float)y / inputControlsView.getMaxHeight();
-            percentX = px;
-            percentY = py;
-            elementJSONObject.put("x", px);
-            elementJSONObject.put("y", py);
+            elementJSONObject.put("x", (float)x / inputControlsView.getMaxWidth());
+            elementJSONObject.put("y", (float)y / inputControlsView.getMaxHeight());
             elementJSONObject.put("toggleSwitch", propertyFlags.isSet(FLAG_TOGGLE_SWITCH));
             elementJSONObject.put("text", text);
             elementJSONObject.put("iconId", iconId);
-            if (mouseBtn != MouseBtn.NONE) elementJSONObject.put("mouseBtn", mouseBtn.name());
-            if (xDrift != 0) elementJSONObject.put("xDrift", Short.valueOf(xDrift));
-            if (yDrift != 0) elementJSONObject.put("yDrift", Short.valueOf(yDrift));
-            if (deadZone != TAP_TRACKPAD_DEFAULT_DEAD_ZONE) elementJSONObject.put("deadZone", Short.valueOf(deadZone));
-            if (hasCustomIcon()) elementJSONObject.put("customIconData", customIconData);
-            if (pressedColor != 0xff000000) elementJSONObject.put("pressedColor", pressedColor);
-            if (textColor != -1) elementJSONObject.put("textColor", textColor);
-            if (iconScale != 1.0f) elementJSONObject.put("iconScale", Float.valueOf(iconScale));
-            if (iconOpacity != 1.0f) elementJSONObject.put("iconOpacity", Float.valueOf(iconOpacity));
 
             if (type == Type.RANGE_BUTTON && range != null) {
                 elementJSONObject.put("range", range.name());
@@ -1102,12 +812,6 @@ public class ControlElement {
         return !propertyFlags.isSet(FLAG_TOGGLE_SWITCH) && (binding == Binding.GAMEPAD_BUTTON_L3 || binding == Binding.GAMEPAD_BUTTON_R3);
     }
 
-    private void performHapticFeedback() {
-        if (inputControlsView.isTouchHapticFeedbackEnabled()) {
-            inputControlsView.performTouchHapticFeedback();
-        }
-    }
-
     public boolean handleTouchDown(int pointerId, float x, float y) {
         if (currentPointerId == -1 && containsPoint(x, y)) {
             currentPointerId = pointerId;
@@ -1117,14 +821,12 @@ public class ControlElement {
                 if (propertyFlags.isSet(FLAG_MOUSE_MOVE_MODE)) inputControlsView.getTouchpadView().mouseMove(x, y, MotionEvent.ACTION_DOWN);
 
                 propertyFlags.set(FLAG_PRESSED);
-                performHapticFeedback();
                 inputControlsView.invalidate();
                 return true;
             }
             else if (type == Type.RANGE_BUTTON) {
                 scroller.handleTouchDown(x, y);
                 propertyFlags.set(FLAG_PRESSED);
-                performHapticFeedback();
                 inputControlsView.invalidate();
                 return true;
             }
@@ -1134,7 +836,6 @@ public class ControlElement {
                     byte note = (byte)(12 + MIDIHandler.parseNoteNumber(text));
                     winHandler.getMIDIhandler().sendShortMsg((byte) MIDIHandler.CMD_NOTE_ON, (byte)0, note, Byte.MAX_VALUE);
                     propertyFlags.set(FLAG_PRESSED);
-                    performHapticFeedback();
                     inputControlsView.invalidate();
                 }
                 return true;
@@ -1146,19 +847,14 @@ public class ControlElement {
                     }
                 }
                 else propertyFlags.set(FLAG_VISIBLE);
-                performHapticFeedback();
                 inputControlsView.invalidate();
                 return true;
             }
             else {
-                if (type == Type.TRACKPAD || type == Type.TAP_TRACKPAD) {
+                if (type == Type.TRACKPAD) {
                     if (currentPosition == null) currentPosition = new PointF();
                     currentPosition.set(x, y);
                 }
-                if (type == Type.TAP_TRACKPAD) {
-                    centerPointer();
-                }
-                performHapticFeedback();
                 return handleTouchMove(pointerId, x, y);
             }
         }
@@ -1166,13 +862,13 @@ public class ControlElement {
     }
 
     public boolean handleTouchMove(int pointerId, float x, float y) {
-        if (pointerId == currentPointerId && (type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD || type == Type.TAP_TRACKPAD)) {
+        if (pointerId == currentPointerId && (type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD)) {
             float deltaX, deltaY;
             Rect boundingBox = getBoundingBox();
             float radius = boundingBox.width() * 0.5f;
             TouchpadView touchpadView =  inputControlsView.getTouchpadView();
 
-            if (type == Type.TRACKPAD || type == Type.TAP_TRACKPAD) {
+            if (type == Type.TRACKPAD) {
                 if (currentPosition == null) currentPosition = new PointF();
                 float[] deltaPoint = touchpadView.computeDeltaPoint(currentPosition.x, currentPosition.y, x, y);
                 deltaX = deltaPoint[0];
@@ -1219,27 +915,10 @@ public class ControlElement {
 
                 inputControlsView.invalidate();
             }
-            else if (type == Type.TRACKPAD || type == Type.TAP_TRACKPAD) {
-                float minSpeed = type == Type.TAP_TRACKPAD ? deadZone : TRACKPAD_MIN_SPEED;
-                boolean[] states;
-                if (type == Type.TAP_TRACKPAD) {
-                    // 用指针距中心点的距离判定触发（借鉴触控优化版）：指针偏离中心超过死区则触发并锁定，直到松手
-                    XServer xServer = inputControlsView.getXServer();
-                    int centerX = xServer.screenInfo.width / 2 + xDrift;
-                    int centerY = xServer.screenInfo.height / 2 + yDrift;
-                    float distX = xServer.pointer.getX() - centerX;
-                    float distY = xServer.pointer.getY() - centerY;
-                    boolean active = Math.sqrt(distX * distX + distY * distY) >= minSpeed;
-                    if (active) isMouseBtnTriggered = true;
-                    states = (active || isMouseBtnTriggered) ? new boolean[]{distY < 0, distX > 0, distY > 0, distX < 0} : new boolean[4];
-                }
-                else {
-                    states = new boolean[]{deltaY <= -minSpeed, deltaX >= minSpeed, deltaY >= minSpeed, deltaX <= -minSpeed};
-                }
+            else if (type == Type.TRACKPAD) {
+                final boolean[] states = {deltaY <= -TRACKPAD_MIN_SPEED, deltaX >= TRACKPAD_MIN_SPEED, deltaY >= TRACKPAD_MIN_SPEED, deltaX <= -TRACKPAD_MIN_SPEED};
                 int cursorDx = 0;
                 int cursorDy = 0;
-
-                updateMouseBtnState(states);
 
                 for (byte i = 0; i < 4; i++) {
                     float value = (i == 1 || i == 3 ? deltaX : deltaY);
@@ -1298,38 +977,6 @@ public class ControlElement {
         else return false;
     }
 
-    private void centerPointer() {
-        // 其他元素正按住鼠标键（如左键走路中）时不拉回中心，避免打断其移动方向
-        for (ControlElement other : inputControlsView.getProfile().getElements()) {
-            if (other != this && other.isMouseBtnPressed()) return;
-        }
-        XServer xServer = inputControlsView.getXServer();
-        int cx = xServer.screenInfo.width / 2 + xDrift;
-        int cy = xServer.screenInfo.height / 2 + yDrift;
-        xServer.injectPointerMove(cx, cy);
-    }
-
-    private void updateMouseBtnState(boolean[] states) {
-        if (mouseBtn == MouseBtn.NONE) return;
-        boolean active = false;
-        for (boolean state : states) {
-            if (state) {
-                active = true;
-                break;
-            }
-        }
-        // 点击触摸板触发后锁定，滑回死区内也保持按住，直到松手
-        if (type == Type.TAP_TRACKPAD && isMouseBtnTriggered) active = true;
-        if (active && !isMouseBtnPressed) {
-            inputControlsView.getXServer().injectPointerButtonPress(mouseBtn.toBinding().getPointerButton());
-            isMouseBtnPressed = true;
-        }
-        else if (!active && isMouseBtnPressed) {
-            inputControlsView.getXServer().injectPointerButtonRelease(mouseBtn.toBinding().getPointerButton());
-            isMouseBtnPressed = false;
-        }
-    }
-
     public boolean handleTouchUp(int pointerId, float x, float y) {
         if (pointerId == currentPointerId) {
             if (type == Type.BUTTON) {
@@ -1363,15 +1010,10 @@ public class ControlElement {
                 if (propertyFlags.isSet(FLAG_VISIBLE)) handleRadialMenuClick(x, y);
                 inputControlsView.invalidate();
             }
-            else if (type == Type.RANGE_BUTTON || type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD || type == Type.TAP_TRACKPAD) {
+            else if (type == Type.RANGE_BUTTON || type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD) {
                 for (byte i = 0; i < states.length; i++) {
                     if (states[i]) inputControlsView.handleInputEvent(getBindingAt(i), false);
                     states[i] = false;
-                }
-
-                if (isMouseBtnPressed) {
-                    inputControlsView.getXServer().injectPointerButtonRelease(mouseBtn.toBinding().getPointerButton());
-                    isMouseBtnPressed = false;
                 }
 
                 if (type == Type.RANGE_BUTTON) {
@@ -1384,10 +1026,6 @@ public class ControlElement {
                 }
 
                 if (currentPosition != null) currentPosition = null;
-                if (type == Type.TAP_TRACKPAD) {
-                    isMouseBtnTriggered = false;
-                    centerPointer();
-                }
             }
             currentPointerId = -1;
             return true;
@@ -1442,11 +1080,6 @@ public class ControlElement {
     public int getLightColor() {
         float opacity = inputControlsView.isEditMode() ? Math.max(0.15f, this.opacity) : this.opacity;
         return Color.argb((int)(opacity * inputControlsView.getOverlayOpacity() * 255), 255, 255, 255);
-    }
-
-    public int getPressedColorWithOpacity() {
-        float opacity = inputControlsView.isEditMode() ? Math.max(0.15f, this.opacity) : this.opacity;
-        return Color.argb((int)(opacity * inputControlsView.getOverlayOpacity() * 255), Color.red(pressedColor), Color.green(pressedColor), Color.blue(pressedColor));
     }
 
     public int getDarkColor() {

@@ -4,7 +4,7 @@ import android.view.KeyEvent;
 
 import androidx.collection.ArraySet;
 
-import com.ewt45.winlator.E02_KeyInput;
+import com.winlator.core.AppUtils;
 import com.winlator.core.Bitmask;
 import com.winlator.inputcontrols.ExternalController;
 
@@ -116,7 +116,13 @@ public class Keyboard {
             }
         }
         else if (action == KeyEvent.ACTION_MULTIPLE) {
-            return E02_KeyInput.handleAndroidKeyEvent(this.xServer, event);
+            String chars = event.getCharacters();
+            if (chars != null && chars.length() == 1) {
+                int keysym = chars.charAt(0);
+                XKeycode xKeycode = getCustomXKeycodeForKeysym(keysym);
+                xServer.injectKeyPress(xKeycode, keysym);
+                AppUtils.runDelayed(() -> xServer.injectKeyRelease(xKeycode), 30);
+            }
         }
         return true;
     }
@@ -137,7 +143,7 @@ public class Keyboard {
     }
 
     private static XKeycode[] createKeycodeMap() {
-        XKeycode[] keycodeMap = new XKeycode[300];
+        XKeycode[] keycodeMap = new XKeycode[159];
         keycodeMap[KeyEvent.KEYCODE_ENTER] = XKeycode.KEY_ENTER;
         keycodeMap[KeyEvent.KEYCODE_ESCAPE] = XKeycode.KEY_ESC;
         keycodeMap[KeyEvent.KEYCODE_DPAD_LEFT] = XKeycode.KEY_LEFT;
@@ -215,7 +221,6 @@ public class Keyboard {
         keycodeMap[KeyEvent.KEYCODE_NUMPAD_SUBTRACT] = XKeycode.KEY_KP_SUBTRACT;
         keycodeMap[KeyEvent.KEYCODE_NUMPAD_ADD] = XKeycode.KEY_KP_ADD;
         keycodeMap[KeyEvent.KEYCODE_NUMPAD_DOT] = XKeycode.KEY_KP_DEL;
-        keycodeMap[KeyEvent.KEYCODE_NUMPAD_ENTER] = XKeycode.KEY_KP_ENTER;
         keycodeMap[KeyEvent.KEYCODE_NUMPAD_0] = XKeycode.KEY_KP_0;
         keycodeMap[KeyEvent.KEYCODE_NUMPAD_1] = XKeycode.KEY_KP_1;
         keycodeMap[KeyEvent.KEYCODE_NUMPAD_2] = XKeycode.KEY_KP_2;
@@ -240,7 +245,6 @@ public class Keyboard {
         keycodeMap[KeyEvent.KEYCODE_F12] = XKeycode.KEY_F12;
         keycodeMap[KeyEvent.KEYCODE_NUM_LOCK] = XKeycode.KEY_NUM_LOCK;
         keycodeMap[KeyEvent.KEYCODE_CAPS_LOCK] = XKeycode.KEY_CAPS_LOCK;
-        keycodeMap[KeyEvent.KEYCODE_SCROLL_LOCK] = XKeycode.KEY_SCROLL_LOCK;
         return keycodeMap;
     }
 
@@ -329,7 +333,6 @@ public class Keyboard {
         keyboard.setKeysyms(XKeycode.KEY_KP_8.id, 65464, 65431);
         keyboard.setKeysyms(XKeycode.KEY_KP_9.id, 65465, 65465);
         keyboard.setKeysyms(XKeycode.KEY_KP_DEL.id, 65439, 0);
-        keyboard.setKeysyms(XKeycode.KEY_KP_ENTER.id, 65421, 0);
         keyboard.setKeysyms(XKeycode.KEY_F1.id, 65470, 0);
         keyboard.setKeysyms(XKeycode.KEY_F2.id, 65471, 0);
         keyboard.setKeysyms(XKeycode.KEY_F3.id, 65472, 0);
@@ -342,8 +345,6 @@ public class Keyboard {
         keyboard.setKeysyms(XKeycode.KEY_F10.id, 65479, 0);
         keyboard.setKeysyms(XKeycode.KEY_F11.id, 65480, 0);
         keyboard.setKeysyms(XKeycode.KEY_F12.id, 65481, 0);
-        keyboard.setKeysyms(XKeycode.KEY_PAUSE.id, 65299, 0);
-        keyboard.setKeysyms(XKeycode.KEY_SCROLL_LOCK.id, 65302, 0);
         return keyboard;
     }
 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Winlator Pulse</string>
+    <string name="app_name">Winlator</string>
     <string name="run">Executar</string>
     <string name="edit">Editar</string>
     <string name="remove">Remover</string>
@@ -188,7 +188,6 @@
     <string name="removing_files">Removendo Arquivos...</string>
     <string name="disable_mouse_input">Desativar Entrada do Mouse</string>
     <string name="move_cursor_to_touchpoint">Mover o cursor para o ponto de toque</string>
-    <string name="pinch_zoom">Zoom com dois dedos</string>
     <string name="dpi_font_size">DPI (Tamanho da Fonte)</string>
     <string name="gamepad_model">Modelo do Gamepad</string>
     <string name="file_manager">Gerenciador de Arquivos</string>

@@ -7,7 +7,6 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.KeyEvent;
@@ -34,7 +33,6 @@ import com.winlator.container.Container;
 import com.winlator.container.ContainerManager;
 import com.winlator.container.DXWrappers;
 import com.winlator.container.GraphicsDrivers;
-import com.winlator.container.LaunchArgs;
 import com.winlator.container.Shortcut;
 import com.winlator.contentdialog.ActiveWindowsDialog;
 import com.winlator.contentdialog.AudioDriverConfigDialog;
@@ -44,7 +42,6 @@ import com.winlator.contentdialog.DebugDialog;
 import com.winlator.contentdialog.ScreenEffectDialog;
 import com.winlator.contentdialog.TurnipConfigDialog;
 import com.winlator.contentdialog.VKD3DConfigDialog;
-import com.ewt45.winlator.E02_KeyInput;
 import com.winlator.contentdialog.VirGLConfigDialog;
 import com.winlator.contentdialog.WineD3DConfigDialog;
 import com.winlator.core.AppUtils;
@@ -72,12 +69,10 @@ import com.winlator.math.Mathf;
 import com.winlator.renderer.GLRenderer;
 import com.winlator.services.ForegroundService;
 import com.winlator.widget.FrameRating;
-import com.winlator.widget.HudSettingsDialog;
 import com.winlator.widget.InputControlsView;
 import com.winlator.widget.MagnifierView;
 import com.winlator.widget.TouchpadView;
 import com.winlator.widget.XServerView;
-import com.winlator.winhandler.GamepadHandler;
 import com.winlator.winhandler.TaskManagerDialog;
 import com.winlator.winhandler.WinHandler;
 import com.winlator.xconnector.UnixSocketConfig;
@@ -120,14 +115,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     private FrameRating frameRating;
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
-    private LaunchArgs launchArgs;
-    private static Intent pendingLaunchIntent;
     private String[] graphicsDriver = {GraphicsDrivers.DEFAULT_VULKAN_DRIVER, GraphicsDrivers.DEFAULT_OPENGL_DRIVER};
     private String audioDriver = Container.DEFAULT_AUDIO_DRIVER;
     private String dxwrapper = Container.DEFAULT_DXWRAPPER;
     private ScreenInfo screenInfo = new ScreenInfo(Container.DEFAULT_SCREEN_SIZE);
-    private String screenOrientation = Container.DEFAULT_SCREEN_ORIENTATION;
-    private boolean swapResolution = Container.DEFAULT_SWAP_RESOLUTION;
     private KeyValueSet[] dxwrapperConfig;
     private KeyValueSet[] graphicsDriverConfig = {new KeyValueSet(), new KeyValueSet()};
     private KeyValueSet audioDriverConfig;
@@ -150,24 +141,15 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     public void onCreate(Bundle savedInstanceState) {
         AppUtils.setActivityTheme(this);
         super.onCreate(savedInstanceState);
-
-        // onNewIntent 确认重启时通过静态字段传入新 Intent；recreate() 会沿用旧 Intent，需在此替换
-        Intent pendingIntent = pendingLaunchIntent;
-        pendingLaunchIntent = null;
-        if (pendingIntent != null) setIntent(pendingIntent);
-
         AppUtils.hideSystemUI(this);
         AppUtils.keepScreenOn(this);
         setContentView(R.layout.xserver_display_activity);
         ForegroundService.startSession(this);
-        // 只抓容器运行期间的 logcat：此处清空重抓，退出时停止，文件保留。
-        MainApplication.startLogcatSession(this);
 
         final PreloaderDialog preloaderDialog = new PreloaderDialog(this);
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
         boolean useAndroidClipboardOnWine = preferences.getBoolean("use_android_clipboard_on_wine", false);
         clipboardManager = useAndroidClipboardOnWine ? (ClipboardManager)getSystemService(CLIPBOARD_SERVICE) : null;
-        E02_KeyInput.setup(winHandler, preferences.getBoolean("chinese_input_paste_mode", true));
 
         drawerLayout = findViewById(R.id.DrawerLayout);
         drawerLayout.setOnApplyWindowInsetsListener((view, windowInsets) -> windowInsets.replaceSystemWindowInsets(0, 0, 0, 0));
@@ -213,12 +195,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             String shortcutPath = getIntent().getStringExtra("shortcut_path");
             if (shortcutPath != null && !shortcutPath.isEmpty()) shortcut = new Shortcut(container, new File(shortcutPath));
 
-            launchArgs = new LaunchArgs(parseLaunchOverrides(), shortcut, getIntent().hasExtra("exec_path"));
-
-            // drives 覆盖只影响本次会话（save=true 时由 ExternalLaunchActivity 落盘）
-            String launchDrives = launchArgs.getOverride("drives", "");
-            if (!launchDrives.isEmpty()) container.setTransientDrives(launchDrives);
-
             String graphicsDriver = container.getGraphicsDriver();
             audioDriver = container.getAudioDriver();
             String dxwrapper = container.getDXWrapper();
@@ -226,38 +202,27 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             String dxwrapperConfig = container.getDXWrapperConfig();
             String graphicsDriverConfig = container.getGraphicsDriverConfig();
             audioDriverConfig = new KeyValueSet(container.getAudioDriverConfig());
-            screenInfo = new ScreenInfo(container.getScreenSize());
-            screenOrientation = container.getScreenOrientation();
-            swapResolution = container.isSwapResolution();
-
-            graphicsDriver = launchArgs.getExtra("graphicsDriver", graphicsDriver);
-            audioDriver = launchArgs.getExtra("audioDriver", audioDriver);
-            dxwrapper = launchArgs.getExtra("dxwrapper", dxwrapper);
-            wincomponents = launchArgs.getExtra("wincomponents", wincomponents);
-            dxwrapperConfig = launchArgs.getExtra("dxwrapperConfig", dxwrapperConfig);
-            graphicsDriverConfig = launchArgs.getExtra("graphicsDriverConfig", graphicsDriverConfig);
-            audioDriverConfig = new KeyValueSet(launchArgs.getExtra("audioDriverConfig", audioDriverConfig.toString()));
-            screenInfo = new ScreenInfo(launchArgs.getExtra("screenSize", container.getScreenSize()));
-            screenOrientation = launchArgs.getExtra("screenOrientation", screenOrientation);
-            swapResolution = launchArgs.getExtra("swapResolution", String.valueOf(swapResolution)).equals("true");
-
-            applyScreenOrientation();
-
-            if (swapResolution) {
-                screenInfo = new ScreenInfo(screenInfo.height, screenInfo.width);
-            }
+            screenInfo = resolveScreenInfo(container.getScreenSize());
 
             if (shortcut != null) {
+                graphicsDriver = shortcut.getExtra("graphicsDriver", container.getGraphicsDriver());
+                audioDriver = shortcut.getExtra("audioDriver", container.getAudioDriver());
+                dxwrapper = shortcut.getExtra("dxwrapper", container.getDXWrapper());
+                wincomponents = shortcut.getExtra("wincomponents", container.getWinComponents());
+                dxwrapperConfig = shortcut.getExtra("dxwrapperConfig", container.getDXWrapperConfig());
+                graphicsDriverConfig = shortcut.getExtra("graphicsDriverConfig", container.getGraphicsDriverConfig());
+                audioDriverConfig = new KeyValueSet(shortcut.getExtra("audioDriverConfig", container.getAudioDriverConfig()));
+                screenInfo = resolveScreenInfo(shortcut.getExtra("screenSize", container.getScreenSize()));
+
+                String dinputMapperType = shortcut.getExtra("dinputMapperType");
+                if (!dinputMapperType.isEmpty()) winHandler.gamepadHandler.setDInputMapperType(Byte.parseByte(dinputMapperType));
+
                 win32AppWorkarounds.applyStartupWorkarounds(!shortcut.wmClass.isEmpty() ? shortcut.wmClass : shortcut.path);
             }
             else {
                 Intent intent = getIntent();
                 if (intent.hasExtra("exec_path")) win32AppWorkarounds.applyStartupWorkarounds(FileUtils.getName(intent.getStringExtra("exec_path")));
             }
-
-            String dinputMapperType = shortcut != null ? shortcut.getExtra("dinputMapperType", String.valueOf(GamepadHandler.DINPUT_MAPPER_TYPE_STANDARD)) : container.getExtra("dinputMapperType", String.valueOf(GamepadHandler.DINPUT_MAPPER_TYPE_STANDARD));
-            dinputMapperType = launchArgs.getOverride("dinputMapperType", dinputMapperType);
-            if (!dinputMapperType.isEmpty()) winHandler.gamepadHandler.setDInputMapperType(Byte.parseByte(dinputMapperType));
 
             this.graphicsDriver = GraphicsDrivers.parseIdentifiers(graphicsDriver);
             this.graphicsDriverConfig = GraphicsDrivers.parseConfigs(graphicsDriver, graphicsDriverConfig);
@@ -267,13 +232,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
         preloaderDialog.show(R.string.starting_up);
 
-        // 将用户设置的刷新率传递给 X server，供 XRandR 扩展返回给 Wine/游戏
-        screenInfo.refreshRate = container.getRefreshRate();
-
         inputControlsManager = new InputControlsManager(this);
         xServer = new XServer(this, screenInfo);
         xServer.setWinHandler(winHandler);
-        final boolean[] flags = {false, hasExecutable()};
+        final boolean[] flags = {false, shortcut != null || getIntent().hasExtra("exec_path")};
         xServer.windowManager.addOnWindowModificationListener(new WindowManager.OnWindowModificationListener() {
             @Override
             public void onUpdateWindowContent(Window window) {
@@ -332,30 +294,15 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     }
 
     @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        if (intent == null || !intent.getBooleanExtra(LaunchArgs.EXTRA_EXTERNAL_LAUNCH, false) || isFinishing()) return;
-
-        String launchId = intent.getStringExtra(LaunchArgs.EXTRA_LAUNCH_ID);
-        if (launchId != null && launchId.equals(getIntent().getStringExtra(LaunchArgs.EXTRA_LAUNCH_ID))) return;
-
-        ContentDialog.confirm(this, R.string.external_launch_restart_session, () -> {
-            // 先摘掉终止回调：停环境会 kill guest 进程，否则会触发 exit() 再次重启应用
-            if (environment != null) {
-                GuestProgramLauncherComponent launcher = environment.getComponent(GuestProgramLauncherComponent.class);
-                if (launcher != null) launcher.setTerminationCallback(null);
-            }
-            pendingLaunchIntent = intent;
-            recreate();
-        });
-    }
-
-    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
 
         if (hasFocus) {
-            if (capturePointerOnExternalMouse) touchpadView.requestPointerCapture();
+            if (capturePointerOnExternalMouse) {
+                // Captured events are delivered to the focused view.
+                View captureView = inputControlsView.getVisibility() == View.VISIBLE ? inputControlsView : touchpadView;
+                if (captureView.requestFocus()) captureView.requestPointerCapture();
+            }
 
             if (winHandler != null && clipboardManager != null && clipboardManager.hasPrimaryClip()) {
                 ClipData primaryClip = clipboardManager.getPrimaryClip();
@@ -373,10 +320,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             xServerView.onResume();
             environment.onResume();
         }
-        if (inputControlsView != null) {
-            inputControlsView.setOverlayOpacity(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
-            inputControlsView.invalidate();
-        }
         ForegroundService.onResumeSession(this);
     }
 
@@ -384,7 +327,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     public void onPause() {
         ForegroundService.onPauseSession(this);
         super.onPause();
-        if (environment != null && !isInPictureInPictureMode() && !isInMultiWindowMode()) {
+        if (environment != null && !isInPictureInPictureMode()) {
             environment.onPause();
             xServerView.onPause();
         }
@@ -400,9 +343,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     protected void onDestroy() {
         winHandler.stop();
         if (environment != null) environment.stopEnvironmentComponents();
-        // 兜底：Activity 未经 exit() 而销毁时也要停掉 logcat，避免进程泄漏。
-        // 幂等，且此时文件已写好，不影响保留。
-        MainApplication.stopLogcatSession();
         ForegroundService.stopSession(this);
         super.onDestroy();
     }
@@ -431,11 +371,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 break;
             case R.id.menu_item_toggle_fullscreen:
                 renderer.toggleFullscreen();
-                drawerLayout.closeDrawers();
-                touchpadView.toggleFullscreen();
-                break;
-            case R.id.menu_item_move_cursor_to_touchpoint:
-                touchpadView.setMoveCursorToTouchpoint(!touchpadView.isMoveCursorToTouchpoint());
                 drawerLayout.closeDrawers();
                 break;
             case R.id.menu_item_task_manager:
@@ -467,12 +402,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 (new ScreenEffectDialog(this)).show();
                 drawerLayout.closeDrawers();
                 break;
-            case R.id.menu_item_hud_settings:
-                (new HudSettingsDialog(this, () -> {
-                    if (frameRating != null) frameRating.refreshSettings();
-                })).show();
-                drawerLayout.closeDrawers();
-                break;
             case R.id.menu_item_pip_mode:
                 PictureInPictureParams pipParams = (new PictureInPictureParams.Builder())
                     .setAspectRatio(screenInfo.aspectRatio())
@@ -482,15 +411,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 break;
             case R.id.menu_item_logs:
                 debugDialog.show();
-                drawerLayout.closeDrawers();
-                break;
-            case R.id.menu_item_fix_perms:
-                Executors.newSingleThreadExecutor().execute(() -> {
-                    try {
-                        Runtime.getRuntime().exec(new String[]{"chmod", "-R", "777", rootFS.getRootDir().getAbsolutePath()});
-                    } catch (Exception e) {}
-                    AppUtils.showToast(this, R.string.fix_perms_done);
-                });
                 drawerLayout.closeDrawers();
                 break;
             case R.id.menu_item_touchpad_help:
@@ -507,28 +427,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         return preferences;
     }
 
-    private void applyScreenOrientation() {
-        switch (screenOrientation) {
-            case "landscape":
-                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-                break;
-            case "portrait":
-                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
-                break;
-            case "auto":
-                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
-                break;
-            default:
-                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-                break;
-        }
-    }
-
     private void exit() {
         winHandler.stop();
         if (environment != null) environment.stopEnvironmentComponents();
-        // 容器会话结束：停止抓取，文件保留供查看
-        MainApplication.stopLogcatSession();
 
         Intent intent = getIntent();
         if (intent.hasExtra("exec_path")) {
@@ -597,8 +498,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         envVars.put("MESA_NO_ERROR", "1");
         envVars.put("WINEPREFIX", rootPath+RootFS.WINEPREFIX);
         envVars.put("WINE_DO_NOT_CREATE_DXGI_DEVICE_MANAGER", "1");
-        // 把 cache 目录传给 native，避免硬编码路径导致共存版写错位置
-        envVars.put("APP_CACHE_DIR", getCacheDir().getAbsolutePath());
 
         boolean enableWineDebug = preferences.getBoolean("enable_wine_debug", false);
         String wineDebugChannels = preferences.getString("wine_debug_channels", SettingsFragment.DEFAULT_WINE_DEBUG_CHANNELS);
@@ -611,19 +510,15 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         if (container != null) {
             if (container.getHUDMode() == FrameRating.Mode.FULL.ordinal()) envVars.put("X11_WND_GPU_INFO", "1");
 
-            String desktopName = hasExecutable() ? "nogui" : "shell";
+            String desktopName = shortcut != null || getIntent().hasExtra("exec_path") ? "nogui" : "shell";
             String guestExecutable = "wine explorer /desktop="+desktopName+","+xServer.screenInfo+" "+getWineStartCommand();
             guestProgramLauncherComponent.setGuestExecutable(guestExecutable);
 
             envVars.putAll(container.getEnvVars());
-            if (launchArgs != null) envVars.putAll(launchArgs.getExtra("envVars"));
-            // 容器设置的语言和时区优先于环境变量中的默认值
-            envVars.put("LC_ALL", container.getLcAll());
-            envVars.put("TZ", container.getTimezone());
+            if (shortcut != null) envVars.putAll(shortcut.getExtra("envVars"));
             if (!envVars.has("WINEESYNC")) envVars.put("WINEESYNC", "1");
 
-            guestProgramLauncherComponent.setBox64Preset(launchArgs != null ? launchArgs.getExtra("box64Preset", container.getBox64Preset()) : container.getBox64Preset());
-            guestProgramLauncherComponent.setBox64Version(launchArgs != null ? launchArgs.getExtra("box64Version", container.getBox64Version()) : container.getBox64Version());
+            guestProgramLauncherComponent.setBox64Preset(shortcut != null ? shortcut.getExtra("box64Preset", container.getBox64Preset()) : container.getBox64Preset());
         }
 
         environment = new XEnvironment(this, rootFS);
@@ -687,38 +582,32 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     private void setupUI() {
         FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
         xServerView = new XServerView(this, xServer);
-        // 设置刷新率：0 表示自动匹配系统最高刷新率，其他值为固定 60/90/120/144Hz
-        xServerView.setRefreshRate(container.getRefreshRate());
         final GLRenderer renderer = xServerView.getRenderer();
         renderer.setCursorVisible(false);
         renderer.setCursorColor(preferences.getInt("cursor_color", 0xffffff));
         renderer.setCursorScale(preferences.getFloat("cursor_scale", 1.0f));
-        renderer.setForceWindowsFullscreen(launchArgs != null && launchArgs.getExtra("forceFullscreen", "0").equals("1"));
-        final boolean startFullscreen = launchArgs != null && launchArgs.getExtra("toggleFullscreen", "0").equals("1");
-        // 容器设置的强制全屏拉伸：低分辨率游戏画面拉伸至全屏
-        if (container.isFullscreenStretched()) renderer.setFullscreen(true);
+        renderer.setForceWindowsFullscreen(shortcut != null && shortcut.getExtra("forceFullscreen", "0").equals("1"));
 
         xServer.setRenderer(renderer);
         rootView.addView(xServerView);
 
         globalCursorSpeed = preferences.getFloat("cursor_speed", 1.0f);
-        capturePointerOnExternalMouse = preferences.getBoolean("capture_pointer_on_external_mouse", false);
+        capturePointerOnExternalMouse = preferences.getBoolean("capture_pointer_on_external_mouse", true);
         touchpadView = new TouchpadView(this, xServer, capturePointerOnExternalMouse);
         touchpadView.setSensitivity(globalCursorSpeed);
+        touchpadView.setMoveCursorToTouchpoint(preferences.getBoolean("move_cursor_to_touchpoint", false));
         touchpadView.setFourFingersTapCallback(() -> {
             if (!drawerLayout.isDrawerOpen(GravityCompat.START)) drawerLayout.openDrawer(GravityCompat.START);
         });
         rootView.addView(touchpadView);
 
-        if (startFullscreen) {
-            renderer.toggleFullscreen();
-            touchpadView.toggleFullscreen();
-        }
-
         inputControlsView = new InputControlsView(this);
         inputControlsView.setOverlayOpacity(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
-        inputControlsView.setTouchHapticFeedbackEnabled(preferences.getBoolean("haptic_feedback", false));
         inputControlsView.setTouchpadView(touchpadView);
+        if (capturePointerOnExternalMouse) {
+            inputControlsView.setOnCapturedPointerListener((view, event) ->
+                touchpadView.isEnabled() && touchpadView.onCapturedPointer(view, event));
+        }
         inputControlsView.setXServer(xServer);
         inputControlsView.setVisibility(View.GONE);
         rootView.addView(inputControlsView);
@@ -730,8 +619,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             rootView.addView(frameRating);
         }
 
-        if (container != null) {
-            String controlsProfile = launchArgs != null ? launchArgs.getExtra("controlsProfile", container.getExtra("controlsProfile", "")) : container.getExtra("controlsProfile", "");
+        if (shortcut != null) {
+            String controlsProfile = shortcut.getExtra("controlsProfile");
             if (!controlsProfile.isEmpty()) {
                 ControlsProfile profile = inputControlsManager.getProfile(Integer.parseInt(controlsProfile));
                 if (profile != null) showInputControls(profile);
@@ -752,11 +641,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
             ArrayList<String> profileItems = new ArrayList<>();
             int selectedPosition = 0;
-            ControlsProfile currentProfile = inputControlsView.getProfile();
             profileItems.add("-- "+getString(R.string.disabled)+" --");
             for (int i = 0; i < profiles.size(); i++) {
                 ControlsProfile profile = profiles.get(i);
-                if (currentProfile != null && profile.id == currentProfile.id) selectedPosition = i + 1;
+                if (profile == inputControlsView.getProfile()) selectedPosition = i + 1;
                 profileItems.add(profile.getName());
             }
 
@@ -771,29 +659,15 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         final CheckBox cbShowTouchscreenControls = dialog.findViewById(R.id.CBShowTouchscreenControls);
         cbShowTouchscreenControls.setChecked(inputControlsView.isShowTouchscreenControls());
 
-        final CheckBox cbHapticFeedback = dialog.findViewById(R.id.CBHapticFeedback);
-        cbHapticFeedback.setChecked(inputControlsView.isTouchHapticFeedbackEnabled());
-
         dialog.findViewById(R.id.BTSettings).setOnClickListener((v) -> {
             int position = sProfile.getSelectedItemPosition();
-            int currentProfileId = position > 0 ? inputControlsManager.getProfiles().get(position - 1).id : 0;
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("edit_input_controls", true);
-            intent.putExtra("selected_profile_id", currentProfileId);
+            intent.putExtra("selected_profile_id", position > 0 ? inputControlsManager.getProfiles().get(position - 1).id : 0);
             editInputControlsCallback = () -> {
                 hideInputControls();
                 inputControlsManager.loadProfiles(true);
-                ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
-                ArrayList<String> profileItems = new ArrayList<>();
-                int selectedPosition = 0;
-                profileItems.add("-- "+getString(R.string.disabled)+" --");
-                for (int i = 0; i < profiles.size(); i++) {
-                    ControlsProfile profile = profiles.get(i);
-                    if (currentProfileId > 0 && profile.id == currentProfileId) selectedPosition = i + 1;
-                    profileItems.add(profile.getName());
-                }
-                sProfile.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, profileItems));
-                sProfile.setSelection(selectedPosition);
+                loadProfileSpinner.run();
             };
             startActivityForResult(intent, MainActivity.EDIT_INPUT_CONTROLS_REQUEST_CODE);
         });
@@ -801,8 +675,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         dialog.setOnConfirmCallback(() -> {
             xServer.setRelativeMouseMovement(cbRelativeMouseMovement.isChecked());
             inputControlsView.setShowTouchscreenControls(cbShowTouchscreenControls.isChecked());
-            inputControlsView.setTouchHapticFeedbackEnabled(cbHapticFeedback.isChecked());
-            preferences.edit().putBoolean("haptic_feedback", cbHapticFeedback.isChecked()).apply();
             int position = sProfile.getSelectedItemPosition();
             if (position > 0) {
                 showInputControls(inputControlsManager.getProfiles().get(position - 1));
@@ -819,16 +691,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         inputControlsView.setProfile(profile);
 
         touchpadView.setSensitivity(profile.getCursorSpeed() * globalCursorSpeed);
-        touchpadView.setTouchpadMode(profile.getTouchpadMode());
-        touchpadView.setMoveCursorToTouchpoint(profile.isMoveCursorToTouchpoint());
-        touchpadView.setTwoFingersDrag(profile.isTwoFingersDrag());
-        touchpadView.setTwoFingersRightClick(profile.isTwoFingersRightClick());
-        touchpadView.setLongPressRightClick(profile.isLongPressRightClick());
-        touchpadView.setPinchZoomEnabled(profile.isPinchZoomEnabled());
-        touchpadView.setShortDragEnabled(profile.isShortDragEnabled());
-        touchpadView.setTwoFingersScroll(profile.isTwoFingersScroll());
-        //可能为了防误触吧，影响以后触摸模式扩展
-        //touchpadView.setPointerButtonRightEnabled(false);
+        touchpadView.setPointerButtonRightEnabled(false);
 
         GLRenderer renderer = xServerView.getRenderer();
         if (profile.isDisableMouseInput()) {
@@ -933,7 +796,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
-        return !inputControlsView.onGenericMotionEvent(event) && !winHandler.onGenericMotionEvent(event) && !touchpadView.onExternalMouseEvent(event) && super.dispatchGenericMotionEvent(event);
+        return !winHandler.onGenericMotionEvent(event) && !touchpadView.onExternalMouseEvent(event) && super.dispatchGenericMotionEvent(event);
     }
 
     @Override
@@ -1089,28 +952,15 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         return getIntent().getBooleanExtra("generate_wineprefix", false);
     }
 
-    private boolean hasExecutable() {
-        return launchArgs != null ? launchArgs.hasExecutable() : shortcut != null || getIntent().hasExtra("exec_path");
-    }
-
-    private JSONObject parseLaunchOverrides() {
-        String json = getIntent().getStringExtra(LaunchArgs.EXTRA_LAUNCH_OVERRIDES);
-        if (json == null || json.isEmpty()) return null;
-        try {
-            return new JSONObject(json);
-        }
-        catch (JSONException e) {
-            return null;
-        }
-    }
-
     private String getWineStartCommand() {
         String cmdArgs = "";
         String execPath = null;
-        String execArgs = launchArgs != null ? launchArgs.getExtra("execArgs") : "";
-        execArgs = !execArgs.isEmpty() ? " "+execArgs : "";
+        String execArgs = "";
 
         if (shortcut != null) {
+            execArgs = shortcut.getExtra("execArgs");
+            execArgs = !execArgs.isEmpty() ? " "+execArgs : "";
+
             if (shortcut.isLinkPath()) {
                 cmdArgs = "\""+shortcut.path+"\""+execArgs;
             }
@@ -1119,17 +969,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         else {
             Intent intent = getIntent();
             if (intent.hasExtra("exec_path")) {
-                String unixPath = intent.getStringExtra("exec_path");
-                execPath = WineUtils.unixToDOSPath(unixPath, container);
+                execPath = WineUtils.unixToDOSPath(intent.getStringExtra("exec_path"), container);
 
-                if ((new File(unixPath)).isDirectory()) {
-                    // 目录启动：wfm.exe 取首个参数作为起始目录（参数原样传递，仅处理结尾反斜杠）
-                    String dosDir = execPath.endsWith("\\") ? execPath+"\\" : execPath;
-                    cmdArgs = "/dir C:\\windows \"wfm.exe\" \""+dosDir+"\"";
-                    execPath = null;
-                }
-                else if (execPath.endsWith(".lnk")) {
-                    cmdArgs = "\""+execPath+"\""+execArgs;
+                if (execPath.endsWith(".lnk")) {
+                    cmdArgs = "\""+execPath+"\"";
                     execPath = null;
                 }
             }
@@ -1194,6 +1037,14 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     public void setScreenInfo(ScreenInfo screenInfo) {
         this.screenInfo = screenInfo;
+    }
+
+    private ScreenInfo resolveScreenInfo(String value) {
+        if (!value.equals("native")) return new ScreenInfo(value);
+
+        int width = AppUtils.getScreenWidth();
+        int height = AppUtils.getScreenHeight();
+        return new ScreenInfo(width - (width % 2), height - (height % 2));
     }
 
     public String getWinComponents() {
