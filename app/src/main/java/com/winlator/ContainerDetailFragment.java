@@ -16,7 +16,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
@@ -44,11 +43,9 @@ import com.winlator.contentdialog.VortekConfigDialog;
 import com.winlator.core.AppUtils;
 import com.winlator.core.Callback;
 import com.winlator.container.DXWrapperPicker;
-import com.winlator.core.DefaultVersion;
 import com.winlator.core.EnvVars;
 import com.winlator.core.FileUtils;
 import com.winlator.container.GraphicsDriverPicker;
-import com.winlator.core.GeneralComponents;
 import com.winlator.core.KeyValueSet;
 import com.winlator.core.PreloaderDialog;
 import com.winlator.core.StringUtils;
@@ -57,8 +54,6 @@ import com.winlator.core.WineInstaller;
 import com.winlator.core.WineRegistryEditor;
 import com.winlator.core.WineThemeManager;
 import com.winlator.core.WineUtils;
-import com.winlator.inputcontrols.ControlsProfile;
-import com.winlator.inputcontrols.InputControlsManager;
 import com.winlator.widget.CPUListView;
 import com.winlator.widget.ColorPickerView;
 import com.winlator.widget.EnvVarsView;
@@ -67,7 +62,6 @@ import com.winlator.widget.ImagePickerView;
 import com.winlator.widget.SeekBar;
 import com.winlator.win32.MSLogFont;
 import com.winlator.win32.WinVersions;
-import com.winlator.winhandler.GamepadHandler;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -141,13 +135,6 @@ public class ContainerDetailFragment extends Fragment {
         if (wineInfos.size() > 1) loadWineVersionSpinner(view, sWineVersion, wineInfos);
 
         loadScreenSizeSpinner(view, isEditMode() ? container.getScreenSize() : Container.DEFAULT_SCREEN_SIZE);
-        loadRefreshRateSpinner(view, isEditMode() ? container.getRefreshRate() : Container.DEFAULT_REFRESH_RATE);
-        // 容器语言和时区
-        loadLcAllSpinner(view, isEditMode() ? container.getLcAll() : Container.getDefaultLcAll());
-        loadTimezoneSpinner(view, isEditMode() ? container.getTimezone() : Container.getDefaultTimezone());
-        loadScreenOrientationSpinner(view, isEditMode() ? container.getScreenOrientation() : Container.DEFAULT_SCREEN_ORIENTATION);
-        final CheckBox cbSwapResolution = view.findViewById(R.id.CBSwapResolution);
-        cbSwapResolution.setChecked(isEditMode() ? container.isSwapResolution() : Container.DEFAULT_SWAP_RESOLUTION);
 
         final String oldGraphicsDriverConfig = isEditMode() ? container.getGraphicsDriverConfig() : "";
         String selectedGraphicsDriver = isEditMode() ? container.getGraphicsDriver() : GraphicsDrivers.getDefaultDriver(context);
@@ -169,22 +156,12 @@ public class ContainerDetailFragment extends Fragment {
         final Spinner sHUDMode = view.findViewById(R.id.SHUDMode);
         sHUDMode.setSelection(isEditMode() ? container.getHUDMode() : FrameRating.Mode.DISABLED.ordinal());
 
-        final Spinner sControlsProfile = view.findViewById(R.id.SControlsProfile);
-        loadControlsProfileSpinner(sControlsProfile, isEditMode() ? container.getExtra("controlsProfile", "0") : "0");
-
-        final Spinner sDInputMapperType = view.findViewById(R.id.SDInputMapperType);
-        sDInputMapperType.setSelection(Byte.parseByte(isEditMode() ? container.getExtra("dinputMapperType", String.valueOf(GamepadHandler.DINPUT_MAPPER_TYPE_STANDARD)) : String.valueOf(GamepadHandler.DINPUT_MAPPER_TYPE_STANDARD)));
-
         final Spinner sStartupSelection = view.findViewById(R.id.SStartupSelection);
         byte oldStartupSelection = isEditMode() ? container.getStartupSelection() : -1;
         sStartupSelection.setSelection(oldStartupSelection != -1 ? oldStartupSelection : Container.STARTUP_SELECTION_ESSENTIAL);
 
         final Spinner sWinVersion = view.findViewById(R.id.SWinVersion);
         sWinVersion.setTag((byte)-1);
-
-        final Spinner sBox64Version = view.findViewById(R.id.SBox64Version);
-        String box64Version = isEditMode() ? container.getBox64Version() : DefaultVersion.BOX64;
-        GeneralComponents.initViews(GeneralComponents.Type.BOX64, view.findViewById(R.id.Box64Toolbox), sBox64Version, box64Version, DefaultVersion.BOX64);
 
         final Spinner sBox64Preset = view.findViewById(R.id.SBox64Preset);
         Box64PresetManager.loadSpinner(sBox64Preset, isEditMode() ? container.getBox64Preset() : preferences.getString("box64_preset", Box64Preset.DEFAULT));
@@ -222,17 +199,11 @@ public class ContainerDetailFragment extends Fragment {
                 String cpuListWoW64 = cpuListViewWoW64.getCheckedCPUListAsString();
                 byte startupSelection = (byte)sStartupSelection.getSelectedItemPosition();
                 String box64Preset = Box64PresetManager.getSpinnerSelectedId(sBox64Preset);
-                String box64VersionSelected = StringUtils.parseIdentifier(sBox64Version.getSelectedItem());
                 String desktopTheme = getDesktopTheme(view);
 
                 if (isEditMode()) {
                     container.setName(name);
                     container.setScreenSize(screenSize);
-                    container.setScreenOrientation(getScreenOrientation(view));
-                    container.setSwapResolution(isSwapResolution(view));
-                    container.setRefreshRate(getRefreshRate(view));
-                    container.setLcAll(getLcAll(view));
-                    container.setTimezone(getTimezone(view));
                     container.setEnvVars(envVars);
                     container.setCPUList(cpuList);
                     container.setCPUListWoW64(cpuListWoW64);
@@ -247,16 +218,7 @@ public class ContainerDetailFragment extends Fragment {
                     container.setHUDMode(hudMode);
                     container.setStartupSelection(startupSelection);
                     container.setBox64Preset(box64Preset);
-                    container.setBox64Version(box64VersionSelected);
                     container.setDesktopTheme(desktopTheme);
-
-                    ArrayList<ControlsProfile> profiles = new InputControlsManager(context).getProfiles(true);
-                    int controlsProfile = sControlsProfile.getSelectedItemPosition() > 0 ? profiles.get(sControlsProfile.getSelectedItemPosition()-1).id : 0;
-                    container.putExtra("controlsProfile", controlsProfile > 0 ? String.valueOf(controlsProfile) : null);
-
-                    int dinputMapperType = sDInputMapperType.getSelectedItemPosition();
-                    container.putExtra("dinputMapperType", dinputMapperType != GamepadHandler.DINPUT_MAPPER_TYPE_STANDARD ? String.valueOf(dinputMapperType) : null);
-
                     container.saveData();
 
                     saveWineRegistryKeys(view);
@@ -270,8 +232,6 @@ public class ContainerDetailFragment extends Fragment {
                     JSONObject data = new JSONObject();
                     data.put("name", name);
                     data.put("screenSize", screenSize);
-                    data.put("screenOrientation", getScreenOrientation(view));
-                    data.put("swapResolution", isSwapResolution(view));
                     data.put("envVars", envVars);
                     data.put("cpuList", cpuList);
                     data.put("cpuListWoW64", cpuListWoW64);
@@ -286,7 +246,6 @@ public class ContainerDetailFragment extends Fragment {
                     data.put("hudMode", hudMode);
                     data.put("startupSelection", startupSelection);
                     data.put("box64Preset", box64Preset);
-                    data.put("box64Version", box64VersionSelected);
                     data.put("desktopTheme", desktopTheme);
 
                     if (wineInfos.size() > 1) {
@@ -298,15 +257,6 @@ public class ContainerDetailFragment extends Fragment {
                         if (container != null) {
                             this.container = container;
                             saveWineRegistryKeys(view);
-
-                            ArrayList<ControlsProfile> profiles = new InputControlsManager(context).getProfiles(true);
-                            int controlsProfile = sControlsProfile.getSelectedItemPosition() > 0 ? profiles.get(sControlsProfile.getSelectedItemPosition()-1).id : 0;
-                            container.putExtra("controlsProfile", controlsProfile > 0 ? String.valueOf(controlsProfile) : null);
-
-                            int dinputMapperType = sDInputMapperType.getSelectedItemPosition();
-                            container.putExtra("dinputMapperType", dinputMapperType != GamepadHandler.DINPUT_MAPPER_TYPE_STANDARD ? String.valueOf(dinputMapperType) : null);
-
-                            container.saveData();
                         }
                         preloaderDialog.close();
                         getActivity().onBackPressed();
@@ -397,9 +347,7 @@ public class ContainerDetailFragment extends Fragment {
     public static String getScreenSize(View view) {
         Spinner sScreenSize = view.findViewById(R.id.SScreenSize);
         String value = sScreenSize.getSelectedItem().toString();
-        int position = sScreenSize.getSelectedItemPosition();
-        // 索引 0 = 自定义，索引 1 = 系统分辨率（自动识别设备屏幕分辨率）
-        if (position == 0) {
+        if (sScreenSize.getSelectedItemPosition() == 0) {
             value = Container.DEFAULT_SCREEN_SIZE;
             String strWidth = ((EditText)view.findViewById(R.id.ETScreenWidth)).getText().toString().trim();
             String strHeight = ((EditText)view.findViewById(R.id.ETScreenHeight)).getText().toString().trim();
@@ -408,10 +356,6 @@ public class ContainerDetailFragment extends Fragment {
                 int height = Integer.parseInt(strHeight);
                 if ((width % 2) == 0 && (height % 2) == 0) return width+"x"+height;
             }
-        }
-        else if (position == 1) {
-            // 系统分辨率：自动获取设备屏幕宽高，避免画面拉伸或黑边
-            return AppUtils.getScreenWidth()+"x"+AppUtils.getScreenHeight();
         }
         return StringUtils.parseIdentifier(value);
     }
@@ -450,102 +394,11 @@ public class ContainerDetailFragment extends Fragment {
 
         boolean found = AppUtils.setSpinnerSelectionFromIdentifier(sScreenSize, selectedValue);
         if (!found) {
-            // 如果当前分辨率等于设备实际分辨率，选中"系统分辨率"项（索引 1）
-            String deviceResolution = AppUtils.getScreenWidth()+"x"+AppUtils.getScreenHeight();
-            if (selectedValue.equals(deviceResolution)) {
-                sScreenSize.setSelection(1);
-            }
-            else {
-                sScreenSize.setSelection(0);
-                String[] screenSize = selectedValue.split("x");
-                ((EditText)view.findViewById(R.id.ETScreenWidth)).setText(screenSize[0]);
-                ((EditText)view.findViewById(R.id.ETScreenHeight)).setText(screenSize[1]);
-            }
+            sScreenSize.setSelection(0);
+            String[] screenSize = selectedValue.split("x");
+            ((EditText)view.findViewById(R.id.ETScreenWidth)).setText(screenSize[0]);
+            ((EditText)view.findViewById(R.id.ETScreenHeight)).setText(screenSize[1]);
         }
-    }
-
-    public static String getScreenOrientation(View view) {
-        Spinner sScreenOrientation = view.findViewById(R.id.SScreenOrientation);
-        String[] orientationValues = new String[]{"landscape", "portrait", "auto"};
-        return orientationValues[sScreenOrientation.getSelectedItemPosition()];
-    }
-
-    public static void loadScreenOrientationSpinner(View view, String selectedValue) {
-        Spinner sScreenOrientation = view.findViewById(R.id.SScreenOrientation);
-        String[] orientationValues = new String[]{"landscape", "portrait", "auto"};
-        for (int i = 0; i < orientationValues.length; i++) {
-            if (orientationValues[i].equals(selectedValue)) {
-                sScreenOrientation.setSelection(i);
-                return;
-            }
-        }
-        sScreenOrientation.setSelection(0);
-    }
-
-    public static boolean isSwapResolution(View view) {
-        CheckBox cbSwapResolution = view.findViewById(R.id.CBSwapResolution);
-        return cbSwapResolution.isChecked();
-    }
-
-    // 刷新率下拉栏：索引 0 = 系统最高刷新率（自动识别），1-4 = 60/90/120/144Hz
-    public static int getRefreshRate(View view) {
-        Spinner sRefreshRate = view.findViewById(R.id.SRefreshRate);
-        int position = sRefreshRate.getSelectedItemPosition();
-        if (position == 0) return 0; // 0 表示自动识别系统最高刷新率
-        int[] rates = {0, 60, 90, 120, 144};
-        return position < rates.length ? rates[position] : 0;
-    }
-
-    public static void loadRefreshRateSpinner(View view, int selectedValue) {
-        Spinner sRefreshRate = view.findViewById(R.id.SRefreshRate);
-        int[] rates = {0, 60, 90, 120, 144};
-        for (int i = 0; i < rates.length; i++) {
-            if (rates[i] == selectedValue) {
-                sRefreshRate.setSelection(i);
-                return;
-            }
-        }
-        sRefreshRate.setSelection(0); // 默认自动识别
-    }
-
-    // 容器语言（LC_ALL）：从下拉栏获取实际值
-    public static String getLcAll(View view) {
-        Spinner sLcAll = view.findViewById(R.id.SLcAll);
-        String[] values = view.getResources().getStringArray(R.array.lc_all_values);
-        int position = sLcAll.getSelectedItemPosition();
-        return position < values.length ? values[position] : Container.getDefaultLcAll();
-    }
-
-    public static void loadLcAllSpinner(View view, String selectedValue) {
-        Spinner sLcAll = view.findViewById(R.id.SLcAll);
-        String[] values = view.getResources().getStringArray(R.array.lc_all_values);
-        for (int i = 0; i < values.length; i++) {
-            if (values[i].equals(selectedValue)) {
-                sLcAll.setSelection(i);
-                return;
-            }
-        }
-        sLcAll.setSelection(0); // 默认简体中文
-    }
-
-    // 容器时区（TZ）：从下拉栏获取实际值
-    public static String getTimezone(View view) {
-        Spinner sTimezone = view.findViewById(R.id.STimezone);
-        String[] values = view.getResources().getStringArray(R.array.timezone_values);
-        int position = sTimezone.getSelectedItemPosition();
-        return position < values.length ? values[position] : Container.getDefaultTimezone();
-    }
-
-    public static void loadTimezoneSpinner(View view, String selectedValue) {
-        Spinner sTimezone = view.findViewById(R.id.STimezone);
-        String[] values = view.getResources().getStringArray(R.array.timezone_values);
-        for (int i = 0; i < values.length; i++) {
-            if (values[i].equals(selectedValue)) {
-                sTimezone.setSelection(i);
-                return;
-            }
-        }
-        sTimezone.setSelection(0); // 默认中国标准时间
     }
 
     public static String getWinComponents(View view) {
@@ -608,7 +461,7 @@ public class ContainerDetailFragment extends Fragment {
         final LinearLayout parent = view.findViewById(R.id.LLDrives);
         final View emptyTextView = view.findViewById(R.id.TVDrivesEmptyText);
         LayoutInflater inflater = LayoutInflater.from(context);
-        final String drives = isEditMode() ? container.getDrives() : Container.getDefaultDrives();
+        final String drives = isEditMode() ? container.getDrives() : Container.DEFAULT_DRIVES;
         final String[] driveLetters = new String[Container.MAX_DRIVE_LETTERS];
         for (int i = 0; i < driveLetters.length; i++) driveLetters[i] = ((char)(i + 68))+":";
 
@@ -672,8 +525,8 @@ public class ContainerDetailFragment extends Fragment {
                     editText.setText(AppUtils.DIRECTORY_DOWNLOADS);
                     break;
                 case R.id.menu_item_internal_storage:
-                    drive.path = AppUtils.getInternalStorage();
-                    editText.setText(AppUtils.getInternalStorage());
+                    drive.path = AppUtils.INTERNAL_STORAGE;
+                    editText.setText(AppUtils.INTERNAL_STORAGE);
                     break;
                 default:
                     Container container = manager.getContainerById(menuItem.getOrder());
@@ -696,23 +549,5 @@ public class ContainerDetailFragment extends Fragment {
         view.findViewById(R.id.LLWineVersion).setVisibility(View.VISIBLE);
         sWineVersion.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, wineInfos));
         if (isEditMode()) AppUtils.setSpinnerSelectionFromValue(sWineVersion, WineInfo.fromIdentifier(context, container.getWineVersion()).toString());
-    }
-
-    private static void loadControlsProfileSpinner(Spinner spinner, String selectedValue) {
-        Context context = spinner.getContext();
-        ArrayList<ControlsProfile> profiles = new InputControlsManager(context).getProfiles(true);
-        ArrayList<String> values = new ArrayList<>();
-        values.add(context.getString(R.string.none));
-
-        int selectedPosition = 0;
-        int selectedId = Integer.parseInt(selectedValue);
-        for (int i = 0; i < profiles.size(); i++) {
-            ControlsProfile profile = profiles.get(i);
-            if (profile.id == selectedId) selectedPosition = i + 1;
-            values.add(profile.getName());
-        }
-
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, values));
-        spinner.setSelection(selectedPosition, false);
     }
 }

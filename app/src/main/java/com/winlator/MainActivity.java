@@ -26,7 +26,6 @@ import androidx.preference.PreferenceManager;
 
 import com.google.android.material.navigation.NavigationView;
 import com.winlator.contentdialog.AboutDialog;
-import com.winlator.contents.ContentsFragment;
 import com.winlator.core.AppUtils;
 import com.winlator.core.Callback;
 import com.winlator.core.LocaleHelper;
@@ -35,7 +34,7 @@ import com.winlator.xenvironment.RootFSInstaller;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
     public static final boolean DEBUG_MODE = false; // FIXME change to false
-    public static final @IntRange(from = 1, to = 19) byte CONTAINER_PATTERN_COMPRESSION_LEVEL = 3;
+    public static final @IntRange(from = 1, to = 19) byte CONTAINER_PATTERN_COMPRESSION_LEVEL = 9;
     public static final byte PERMISSION_WRITE_EXTERNAL_STORAGE_REQUEST_CODE = 1;
     public static final byte OPEN_FILE_REQUEST_CODE = 2;
     public static final byte EDIT_INPUT_CONTROLS_REQUEST_CODE = 3;
@@ -128,12 +127,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public void onBackPressed() {
-        if (editInputControls) {
-            setResult(RESULT_OK);
-            finish();
-            return;
-        }
-
         if (currentFragment != null && currentFragment.isVisible()) {
             if (currentFragment instanceof BaseFileManagerFragment) {
                 BaseFileManagerFragment fileManagerFragment = (BaseFileManagerFragment)currentFragment;
@@ -164,7 +157,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     public boolean onOptionsItemSelected(MenuItem menuItem) {
         int itemId = menuItem.getItemId();
         if (itemId == R.id.menu_item_add ||
-            itemId == R.id.icon_action_bar_re ||
             itemId == R.id.menu_item_home ||
             itemId == R.id.menu_item_view_style ||
             itemId == R.id.menu_item_new_folder) {
@@ -202,17 +194,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 preferences.edit().putBoolean("show_shortcuts_first", false).apply();
                 showFragment(new ContainersFragment());
                 break;
-            case R.id.menu_item_saves:
-                showFragment(new SavesFragment());
-                break;
-            case R.id.menu_item_stores:
-                showFragment(new StoresFragment());
-                break;
             case R.id.menu_item_input_controls:
-                showFragment(InputControlsFragment.newInstance(selectedProfileId));
-                break;
-            case R.id.menu_item_contents:
-                showFragment(new ContentsFragment());
+                showFragment(new InputControlsFragment(selectedProfileId));
                 break;
             case R.id.menu_item_settings:
                 showFragment(new SettingsFragment());

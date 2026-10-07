@@ -60,9 +60,6 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
     private int cursorForeColor = 0x000000;
     private boolean screenOffsetYRelativeToCursor = false;
     private float magnifierZoom = 1.0f;
-    private float pinchZoom = 1.0f;
-    private float pinchAnchorX = 0;
-    private float pinchAnchorY = 0;
     protected short surfaceWidth;
     protected short surfaceHeight;
     public final EffectComposer effectComposer = new EffectComposer(this);
@@ -148,16 +145,6 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
         }
 
         XForm.makeTransform(tmpXForm2, -pointerX, -pointerY, magnifierZoom, magnifierZoom, 0);
-
-        if (pinchZoom != 1.0f) {
-            // 以锚点为中心缩放：translate(-anchor) * scale(zoom) * translate(anchor)
-            float ax = pinchAnchorX;
-            float ay = pinchAnchorY;
-            // pinch 锚点是屏幕坐标，需在放大镜变换之上再叠加（multiply 语义为 result = tb∘ta），
-            // 否则 pinch 会直接覆盖掉上面算好的放大镜变换
-            XForm.makeTransform(tmpXForm1, -ax * pinchZoom + ax, -ay * pinchZoom + ay, pinchZoom, pinchZoom, 0);
-            XForm.multiply(tmpXForm2, tmpXForm2, tmpXForm1);
-        }
 
         renderWindows();
         if (cursorVisible) renderCursor();
@@ -289,12 +276,6 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
         xServerView.requestRender();
     }
 
-    // 直接设置全屏拉伸模式（容器启动时应用，无需用户手动切换）
-    public void setFullscreen(boolean fullscreen) {
-        this.fullscreen = fullscreen;
-        xServerView.requestRender();
-    }
-
     private Drawable createRootCursorDrawable() {
         Context context = xServerView.getContext();
         BitmapFactory.Options options = new BitmapFactory.Options();
@@ -422,32 +403,6 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
     public void setMagnifierZoom(float magnifierZoom) {
         this.magnifierZoom = magnifierZoom;
-        xServerView.requestRender();
-    }
-
-    public float getPinchZoom() {
-        return pinchZoom;
-    }
-
-    public float getPinchAnchorX() {
-        return pinchAnchorX;
-    }
-
-    public float getPinchAnchorY() {
-        return pinchAnchorY;
-    }
-
-    public void setPinchZoom(float pinchZoom, float anchorX, float anchorY) {
-        this.pinchZoom = Mathf.clamp(pinchZoom, 1.0f, 4.0f);
-        this.pinchAnchorX = anchorX;
-        this.pinchAnchorY = anchorY;
-        xServerView.requestRender();
-    }
-
-    public void resetPinchZoom() {
-        this.pinchZoom = 1.0f;
-        this.pinchAnchorX = 0;
-        this.pinchAnchorY = 0;
         xServerView.requestRender();
     }
 

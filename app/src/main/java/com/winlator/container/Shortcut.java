@@ -17,10 +17,9 @@ public class Shortcut {
     public final Container container;
     public final String name;
     public final String path;
-    public Bitmap icon;
+    public final Bitmap icon;
     public final File file;
     public final File iconFile;
-    public final String iconName;
     public final String wmClass;
     private final JSONObject extraData = new JSONObject();
 
@@ -33,14 +32,12 @@ public class Shortcut {
             this.path = null;
             this.icon = null;
             this.iconFile = null;
-            this.iconName = "";
             this.wmClass = "";
         }
         else {
             String execArgs = "";
             Bitmap icon = null;
             File iconFile = null;
-            String iconName = "";
             String wmClass = "";
             String section = "";
 
@@ -60,7 +57,6 @@ public class Shortcut {
                     if (section.equals("Desktop Entry")) {
                         if (key.equals("Exec")) execArgs = value;
                         if (key.equals("Icon")) {
-                            iconName = value;
                             for (short iconSize : iconSizes) {
                                 iconFile = new File(container.getIconsDir(iconSize), value+".png");
                                 if (iconFile.isFile()){
@@ -83,21 +79,12 @@ public class Shortcut {
             this.name = FileUtils.getBasename(file.getPath());
             this.icon = icon;
             this.iconFile = iconFile;
-            this.iconName = iconName;
             this.wmClass = wmClass;
 
-            int indexOf;
-            int lastIndexOf = execArgs.lastIndexOf("wine ");
-            String path = execArgs;
-            if (lastIndexOf != -1) {
-                path = StringUtils.unescapeDOSPath(execArgs.substring(lastIndexOf + 5));
-            }
-            int index2 = path.indexOf("start.exe ");
-            path = index2 != -1 ? path.substring(index2 + 10) : path;
-            int indexOf2 = path.indexOf("\"");
-            if (indexOf2 != -1 && (indexOf = path.indexOf("\"", indexOf2 + 1)) != -1) {
-                path = path.substring(indexOf2 + 1, indexOf);
-            }
+            String path = !execArgs.isEmpty() ? StringUtils.unescapeDOSPath(execArgs.substring(execArgs.lastIndexOf("wine ") + 4)) : "";
+            index = path.indexOf("start.exe ");
+            if (index != -1) path = path.substring(index+10);
+
             this.path = path;
             Container.checkObsoleteOrMissingProperties(extraData);
         }
@@ -173,10 +160,5 @@ public class Shortcut {
                 if (linkFile.isFile()) linkFile.delete();
             }
         }
-    }
-
-    // 动态设置图标（供商店下载游戏封面后调用）
-    public void setIcon(Bitmap icon) {
-        this.icon = icon;
     }
 }

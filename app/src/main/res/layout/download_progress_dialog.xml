@@ -1,202 +1,74 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:gravity="center"
     android:clickable="false"
     android:focusable="false">
 
-    <androidx.cardview.widget.CardView
-        android:layout_width="match_parent"
+    <LinearLayout
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:layout_marginEnd="32dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp"
-        app:cardBackgroundColor="?attr/preloaderBackground">
+        android:orientation="vertical"
+        android:paddingTop="22dp"
+        android:paddingBottom="22dp"
+        android:paddingLeft="32dp"
+        android:paddingRight="32dp"
+        android:layout_gravity="center"
+        android:gravity="right"
+        android:background="?attr/preloaderBackground">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="20dp">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-            <!-- 标题行 -->
-            <LinearLayout
-                android:layout_width="match_parent"
+            <FrameLayout
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="12dp">
+                android:layout_marginRight="16dp">
 
                 <com.google.android.material.progressindicator.CircularProgressIndicator
                     android:id="@+id/CircularProgressIndicator"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    app:trackThickness="4dp"
-                    app:trackColor="#bdbdbd"
-                    app:indicatorColor="?attr/colorAccent"
-                    android:layout_marginEnd="12dp"
-                    android:indeterminate="false" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/TVTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimaryText"
-                        android:text="@string/downloading_file"
-                        android:maxLines="1"
-                        android:ellipsize="end" />
-
-                    <TextView
-                        android:id="@+id/TVFileName"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="12sp"
-                        android:textColor="?attr/colorSecondaryText"
-                        android:maxLines="1"
-                        android:ellipsize="middle"
-                        android:visibility="gone" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/TVProgressPercent"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="?attr/colorAccent"
-                    android:text="0%" />
-            </LinearLayout>
+                    app:trackThickness="10dp"
+                    app:trackColor="#bdbdbd"
+                    app:indicatorColor="?attr/colorAccent"
+                    app:indicatorSize="64dp"
+                    android:layout_gravity="center" />
 
-            <!-- 水平进度条 -->
-            <com.google.android.material.progressindicator.LinearProgressIndicator
-                android:id="@+id/LinearProgressBar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:trackThickness="6dp"
-                app:trackColor="#e0e0e0"
-                app:indicatorColor="?attr/colorAccent"
-                app:trackCornerRadius="3dp"
-                android:progress="0" />
-
-            <!-- 信息行：速度 | 已下载/总大小 | 剩余时间 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <LinearLayout
-                    android:layout_width="0dp"
+                <TextView
+                    android:id="@+id/TVProgress"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal">
+                    android:textSize="14dp"
+                    android:layout_gravity="center" />
+            </FrameLayout>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="10sp"
-                        android:textColor="?attr/colorSecondaryText"
-                        android:text="速度" />
-
-                    <TextView
-                        android:id="@+id/TVSpeed"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimaryText"
-                        android:text="-- MB/s" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="1dp"
-                    android:layout_height="24dp"
-                    android:background="?attr/colorSecondaryText"
-                    android:alpha="0.3" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="10sp"
-                        android:textColor="?attr/colorSecondaryText"
-                        android:text="已下载" />
-
-                    <TextView
-                        android:id="@+id/TVDownloaded"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimaryText"
-                        android:text="-- / --" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="1dp"
-                    android:layout_height="24dp"
-                    android:background="?attr/colorSecondaryText"
-                    android:alpha="0.3" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="10sp"
-                        android:textColor="?attr/colorSecondaryText"
-                        android:text="剩余时间" />
-
-                    <TextView
-                        android:id="@+id/TVRemaining"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textSize="13sp"
-                        android:textStyle="bold"
-                        android:textColor="?attr/colorPrimaryText"
-                        android:text="--:--" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- 取消按钮 -->
-            <LinearLayout
-                android:id="@+id/LLBottomBar"
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/TextView"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:visibility="gone"
-                android:layout_marginTop="16dp">
-
-                <View style="@style/HorizontalLine" />
-
-                <Button
-                    style="@style/ButtonNeutral"
-                    android:text="@string/cancel"
-                    android:id="@+id/BTCancel" />
-            </LinearLayout>
+                android:textSize="20dp"
+                android:textColor="?attr/colorPrimaryText"
+                android:text="@string/downloading_file" />
         </LinearLayout>
-    </androidx.cardview.widget.CardView>
+
+        <LinearLayout
+            android:id="@+id/LLBottomBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone">
+
+            <View style="@style/HorizontalLine" />
+
+            <Button
+                style="@style/ButtonNeutral"
+                android:text="@string/cancel"
+                android:id="@+id/BTCancel" />
+        </LinearLayout>
+    </LinearLayout>
 </FrameLayout>

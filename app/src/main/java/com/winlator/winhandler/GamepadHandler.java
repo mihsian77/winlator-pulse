@@ -2,7 +2,6 @@ package com.winlator.winhandler;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 
@@ -36,7 +35,7 @@ public class GamepadHandler {
     private static final byte GAMEPAD_MAX_COUNT = 4;
     private final WinHandler winHandler;
     private final List<Integer> gamepadClients = new CopyOnWriteArrayList<>();
-    private byte dinputMapperType = DINPUT_MAPPER_TYPE_STANDARD;
+    private byte dinputMapperType = DINPUT_MAPPER_TYPE_XINPUT;
     private final GamepadSlot[] gamepadSlots = new GamepadSlot[GAMEPAD_MAX_COUNT];
     private final ArrayList<ExternalController> connectedControllers = new ArrayList<>(GAMEPAD_MAX_COUNT);
     private GamepadPlayerConfig[] gamepadPlayerConfigs;
@@ -272,26 +271,9 @@ public class GamepadHandler {
         }
     }
 
-    private ExternalController getConnectedGameController(int deviceId) {
-        ExternalController controller = getConnectedControllerById(deviceId);
-        if (controller != null) return controller;
-
-        // connectedControllers 只在 wine GET_GAMEPAD 握手时刷新,握手前物理手柄按键
-        // 事件会查不到 controller 而丢失(振动/状态上报)。事件源确为手柄设备时才按需
-        // 刷新设备列表,避免键盘/鼠标等非手柄事件频繁触发全量设备扫描;
-        // 不调用 updateGamepadSlots 以免重排 gamepadSlots 槽位影响已分配的玩家
-        InputDevice device = InputDevice.getDevice(deviceId);
-        if (!ExternalController.isGameController(device)) return null;
-
-        synchronized (connectedControllers) {
-            ExternalController.updateConnectedControllers(connectedControllers);
-        }
-        return getConnectedControllerById(deviceId);
-    }
-
     protected boolean onGenericMotionEvent(MotionEvent event) {
         boolean handled = false;
-        ExternalController controller = getConnectedGameController(event.getDeviceId());
+        ExternalController controller = getConnectedControllerById(event.getDeviceId());
         if (controller != null) {
             handled = controller.updateStateFromMotionEvent(event);
             if (handled) sendGamepadState(controller);
@@ -301,7 +283,7 @@ public class GamepadHandler {
 
     protected boolean onKeyEvent(KeyEvent event) {
         boolean handled = false;
-        ExternalController controller = getConnectedGameController(event.getDeviceId());
+        ExternalController controller = getConnectedControllerById(event.getDeviceId());
         if (controller != null && event.getRepeatCount() == 0) {
             int action = event.getAction();
 
@@ -312,12 +294,7 @@ public class GamepadHandler {
                 handled = controller.updateStateFromKeyEvent(event);
             }
 
-            if (handled) {
-                if (action == KeyEvent.ACTION_DOWN) {
-                    winHandler.activity.getInputControlsView().performTouchHapticFeedback();
-                }
-                sendGamepadState(controller);
-            }
+            if (handled) sendGamepadState(controller);
         }
         return handled;
     }

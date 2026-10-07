@@ -44,27 +44,7 @@ import java.util.TimerTask;
 
 public abstract class AppUtils {
     public static final String DIRECTORY_DOWNLOADS = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getPath();
-
-    // MT 改包共存后 getPackageName() 会变成新包名，/data/data/com.winlator 这类硬编码路径会指向
-    // 不存在的原包名目录。MainApplication.onCreate 里 init() 一次，之后按实际包名生成。
-    // 初值保持原版包名：ContentProvider 先于 Application.onCreate 创建，若那时有代码取用，
-    // 得到的仍是与改动前一致的旧值。
-    private static final String DEFAULT_PACKAGE_NAME = "com.winlator";
-    // volatile 与 PatchUtils 的 init 字段一致：init() 在主线程写入，而
-    // ContainerManager.createContainerAsync 会在后台线程构造 Container 读取该值
-    private static volatile String packageName = DEFAULT_PACKAGE_NAME;
-
-    public static void init(Context context) {
-        packageName = context.getPackageName();
-    }
-
-    /** 容器默认 E: 盘指向的内部存储目录，形如 /data/data/&lt;包名&gt;/storage */
-    public static String getInternalStorage() {
-        // 沿用 /data/data 短写法，与原硬编码值逐字一致：WineUtils 用 startsWith 拿它去匹配
-        // 容器配置里已写入的盘符路径，换成 /data/user/0 就会失配。
-        return "/data/data/" + packageName + "/storage";
-    }
-
+    public static final String INTERNAL_STORAGE = "/data/data/com.winlator/storage";
     private static WeakReference<Toast> globalToastReference = null;
 
     public static class RestartApplicationOptions {
@@ -231,18 +211,15 @@ public abstract class AppUtils {
 
     public static void showHelpBox(Context context, View anchor, String text) {
         int padding = (int)UnitUtils.dpToPx(8);
-        int screenWidthDp = (int)UnitUtils.pxToDp(getScreenWidth());
-        int textViewWidthDp = Math.min(284, screenWidthDp - 40);
-        int popupWidthDp = Math.min(300, screenWidthDp - 20);
         TextView textView = new TextView(context);
-        textView.setLayoutParams(new ViewGroup.LayoutParams((int)UnitUtils.dpToPx(textViewWidthDp), ViewGroup.LayoutParams.WRAP_CONTENT));
+        textView.setLayoutParams(new ViewGroup.LayoutParams((int)UnitUtils.dpToPx(284), ViewGroup.LayoutParams.WRAP_CONTENT));
         textView.setPadding(padding, padding, padding, padding);
         textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         textView.setText(Html.fromHtml(text, Html.FROM_HTML_MODE_LEGACY));
         int widthMeasureSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
         int heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
         textView.measure(widthMeasureSpec, heightMeasureSpec);
-        showPopupWindow(anchor, textView, popupWidthDp, textView.getMeasuredHeight());
+        showPopupWindow(anchor, textView, 300, textView.getMeasuredHeight());
     }
 
     public static int getVersionCode(Context context) {
@@ -400,7 +377,7 @@ public abstract class AppUtils {
 
     public static void setActivityTheme(Activity activity) {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(activity);
-        int appTheme = preferences.getInt("app_theme", SettingsFragment.APP_THEME_LIGHT);
+        int appTheme = preferences.getInt("app_theme", SettingsFragment.APP_THEME_DARK);
         if (appTheme == SettingsFragment.APP_THEME_LIGHT) {
             activity.setTheme(R.style.AppThemeLight);
         }
