@@ -67,69 +67,66 @@ jobs:
 
           git checkout -B "$BRANCH" origin/main
 
-          # Pulse 定制文件/目录保护名单（rsync 排除列表）
-          EXCLUDE_FILES=(
-            "README.md"
-            "gradle.properties"
-            "app/build.gradle"
-            "app/src/main/AndroidManifest.xml"
-            # hostei33 独家功能目录（整目录保护）
+          # Java 源码保护名单（路径相对于 java/ 目录）
+          JAVA_EXCLUDES=(
             "com/catfixture/"
             "com/ewt45/"
-            # Pulse 原创/共存核心文件
-            "app/src/main/java/com/winlator/MainApplication.java"
-            "app/src/main/java/com/winlator/core/AppUtils.java"
-            "app/src/main/java/com/winlator/core/PatchUtils.java"
-            "app/src/main/java/com/winlator/core/LaunchPathResolver.java"
-            "app/src/main/java/com/winlator/container/LaunchArgs.java"
-            "app/src/main/java/com/winlator/xserver/ScreenInfo.java"
-            "app/src/main/java/com/winlator/xserver/extensions/XRandRExtension.java"
-            "app/src/main/java/com/winlator/xserver/XServer.java"
-            "app/src/main/java/com/winlator/XServerDisplayActivity.java"
-            "app/src/main/java/com/winlator/services/InstallService.java"
-            "app/src/main/java/com/winlator/Contents/ContentsFragment.java"
-            "app/src/main/java/com/winlator/core/DownloadProgressDialog.java"
-            "app/src/main/res/layout/download_progress_dialog.xml"
-            "app/src/main/java/com/winlator/widget/FrameRating.java"
-            "app/src/main/java/com/winlator/widget/HudSettingsDialog.java"
-            "app/src/main/java/com/winlator/hud/WinlatorHUD.java"
-            "app/src/main/java/com/winlator/box64/Box64Preset.java"
-            "app/src/main/java/com/winlator/container/Container.java"
-            "app/src/main/java/com/winlator/ContainerDetailFragment.java"
-            "app/src/main/java/com/winlator/renderer/GLRenderer.java"
-            "app/src/main/java/com/winlator/XServerView.java"
-            # hostei33 独家功能文件
-            "app/src/main/java/com/winlator/ExternalLaunchActivity.java"
-            "app/src/main/java/com/winlator/IconPackDetailsActivity.java"
-            "app/src/main/java/com/winlator/IconPackManagerActivity.java"
-            "app/src/main/java/com/winlator/ImageFilePickerActivity.java"
-            "app/src/main/java/com/winlator/SavesFragment.java"
-            "app/src/main/java/com/winlator/ShortcutLauncherActivity.java"
-            "app/src/main/java/com/winlator/StoresFragment.java"
-            # 中文资源
-            "app/src/main/res/values-zh/strings.xml"
-            "app/src/main/res/values-zh/arrays.xml"
-            "app/src/main/res/values/arrays.xml"
-            "app/src/main/res/values/strings.xml"
-            # 工作流
-            ".github/workflows/android-ci.yml"
-            ".github/workflows/build-coexist.yml"
-            ".github/workflows/sync-upstream.yml"
+            "com/winlator/MainApplication.java"
+            "com/winlator/core/AppUtils.java"
+            "com/winlator/core/PatchUtils.java"
+            "com/winlator/core/LaunchPathResolver.java"
+            "com/winlator/container/LaunchArgs.java"
+            "com/winlator/xserver/ScreenInfo.java"
+            "com/winlator/xserver/extensions/XRandRExtension.java"
+            "com/winlator/xserver/XServer.java"
+            "com/winlator/XServerDisplayActivity.java"
+            "com/winlator/services/InstallService.java"
+            "com/winlator/Contents/ContentsFragment.java"
+            "com/winlator/core/DownloadProgressDialog.java"
+            "com/winlator/widget/FrameRating.java"
+            "com/winlator/widget/HudSettingsDialog.java"
+            "com/winlator/hud/WinlatorHUD.java"
+            "com/winlator/box64/Box64Preset.java"
+            "com/winlator/container/Container.java"
+            "com/winlator/ContainerDetailFragment.java"
+            "com/winlator/renderer/GLRenderer.java"
+            "com/winlator/XServerView.java"
+            "com/winlator/ExternalLaunchActivity.java"
+            "com/winlator/IconPackDetailsActivity.java"
+            "com/winlator/IconPackManagerActivity.java"
+            "com/winlator/ImageFilePickerActivity.java"
+            "com/winlator/SavesFragment.java"
+            "com/winlator/ShortcutLauncherActivity.java"
+            "com/winlator/StoresFragment.java"
           )
 
-          EXCLUDE_ARGS=""
-          for f in "${EXCLUDE_FILES[@]}"; do
-            EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude=$f"
+          # res 资源保护名单（路径相对于 res/ 目录）
+          RES_EXCLUDES=(
+            "values/strings.xml"
+            "values/arrays.xml"
+            "values-zh/strings.xml"
+            "values-zh/arrays.xml"
+            "layout/download_progress_dialog.xml"
+          )
+
+          JAVA_EXCLUDE_ARGS=""
+          for f in "${JAVA_EXCLUDES[@]}"; do
+            JAVA_EXCLUDE_ARGS="$JAVA_EXCLUDE_ARGS --exclude=$f"
+          done
+
+          RES_EXCLUDE_ARGS=""
+          for f in "${RES_EXCLUDES[@]}"; do
+            RES_EXCLUDE_ARGS="$RES_EXCLUDE_ARGS --exclude=$f"
           done
 
           echo "=== 同步官方 Java 源码（仅更新，不删除独家文件） ==="
-          rsync -av $EXCLUDE_ARGS \
+          rsync -av $JAVA_EXCLUDE_ARGS \
             /tmp/upstream-official/app/src/main/java/ \
             app/src/main/java/ 2>&1 | tail -20
 
           echo ""
           echo "=== 同步官方 res 资源（仅更新，不删除独家文件） ==="
-          rsync -av $EXCLUDE_ARGS \
+          rsync -av $RES_EXCLUDE_ARGS \
             /tmp/upstream-official/app/src/main/res/ \
             app/src/main/res/ 2>&1 | tail -20
 
