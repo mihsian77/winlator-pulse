@@ -3,9 +3,9 @@
 import os, json, urllib.request
 
 def main():
-    token = os.environ.get("PAT_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("PAT_TOKEN")
     if not token:
-        print("错误: 未找到 PAT_TOKEN 环境变量")
+        print("错误: 未找到 GITHUB_TOKEN 或 PAT_TOKEN 环境变量")
         return 1
 
     repo = os.environ.get("GITHUB_REPOSITORY", "")
