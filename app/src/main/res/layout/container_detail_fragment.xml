@@ -102,92 +102,6 @@
             </LinearLayout>
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/refresh_rate" />
-
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SRefreshRate"
-                    android:entries="@array/refresh_rate_entries" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/screen_orientation" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <Spinner
-                        style="@style/ComboBox"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:id="@+id/SScreenOrientation"
-                        android:entries="@array/screen_orientation_entries" />
-
-                    <CheckBox
-                        android:id="@+id/CBSwapResolution"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/swap_resolution"
-                        android:layout_marginLeft="8dp" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- 容器语言（独立设置，启动时注入 LC_ALL 环境变量） -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/lc_all" />
-
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/SLcAll"
-                    android:entries="@array/lc_all_entries" />
-            </LinearLayout>
-
-            <!-- 容器时区（独立设置，启动时注入 TZ 环境变量） -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/timezone" />
-
-                <Spinner
-                    style="@style/ComboBox"
-                    android:layout_width="match_parent"
-                    android:id="@+id/STimezone"
-                    android:entries="@array/timezone_entries" />
-            </LinearLayout>
-
-            <LinearLayout
                 android:id="@+id/LLWineVersion"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -273,16 +187,6 @@
                 android:id="@+id/SHUDMode"
                 android:layout_width="match_parent"
                 android:entries="@array/hud_mode_entries" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/input_controls" />
-
-            <Spinner
-                style="@style/ComboBox"
-                android:id="@+id/SControlsProfile"
-                android:layout_width="match_parent" />
 
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/TabLayout"
@@ -392,14 +296,12 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:visibility="gone"
                             android:text="@string/system_font" />
 
                         <Spinner
                             style="@style/ComboBox"
                             android:id="@+id/SSystemFont"
                             android:layout_width="match_parent"
-                            android:visibility="gone"
                             android:entries="@array/system_font_entries" />
 
                         <TextView
@@ -437,17 +339,6 @@
                             style="@style/ComboBox"
                             android:id="@+id/SMouseWarpOverride"
                             android:layout_width="match_parent" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/directinput_mapper_type" />
-
-                        <Spinner
-                            style="@style/ComboBox"
-                            android:id="@+id/SDInputMapperType"
-                            android:layout_width="match_parent"
-                            android:entries="@array/dinput_mapper_type_entries" />
                     </LinearLayout>
 
                     <TextView
@@ -584,41 +475,6 @@
                     android:layout_marginTop="8dp">
 
                     <LinearLayout style="@style/FieldSet">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/box64_version" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical">
-
-                            <Spinner
-                                style="@style/ComboBox"
-                                android:id="@+id/SBox64Version"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1" />
-
-                            <LinearLayout
-                                style="@style/Toolbox"
-                                android:id="@+id/Box64Toolbox">
-
-                                <ImageButton
-                                    style="@style/ListMenuButton"
-                                    android:src="@drawable/icon_install"
-                                    android:tag="install" />
-
-                                <ImageButton
-                                    style="@style/ListMenuButton"
-                                    android:layout_marginRight="0dp"
-                                    android:src="@drawable/icon_remove"
-                                    android:tag="remove" />
-                            </LinearLayout>
-                        </LinearLayout>
-
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
