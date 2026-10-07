@@ -44,7 +44,7 @@ public abstract class WineUtils {
         for (Drive drive : container.drivesIterator()) {
             File linkTarget = new File(drive.path);
             String path = linkTarget.getAbsolutePath();
-            if (!linkTarget.isDirectory() && path.startsWith(AppUtils.getInternalStorage())) {
+            if (!linkTarget.isDirectory() && path.startsWith(AppUtils.INTERNAL_STORAGE)) {
                 linkTarget.mkdirs();
                 FileUtils.chmod(linkTarget, 0771);
             }
@@ -53,27 +53,18 @@ public abstract class WineUtils {
     }
 
     public static void setSystemFont(WineRegistryEditor userRegistry, String faceName) {
-        //byte[] fontNormalData = (new MSLogFont()).setFaceName(faceName).toByteArray();
-        //byte[] fontBoldData = (new MSLogFont()).setFaceName(faceName).setWeight(700).toByteArray();
-        //userRegistry.setHexValues("Control Panel\\Desktop\\WindowMetrics", "CaptionFont", fontBoldData);
-        //userRegistry.setHexValues("Control Panel\\Desktop\\WindowMetrics", "IconFont", fontNormalData);
-        //userRegistry.setHexValues("Control Panel\\Desktop\\WindowMetrics", "MenuFont", fontNormalData);
-        //userRegistry.setHexValues("Control Panel\\Desktop\\WindowMetrics", "MessageFont", fontNormalData);
-        //userRegistry.setHexValues("Control Panel\\Desktop\\WindowMetrics", "SmCaptionFont", fontNormalData);
-        //userRegistry.setHexValues("Control Panel\\Desktop\\WindowMetrics", "StatusFont", fontNormalData);
-        //中文显示会有问题，暂时改为注销这些字体配置
-        userRegistry.removeValue("Control Panel\\Desktop\\WindowMetrics", "CaptionFont");
-        userRegistry.removeValue("Control Panel\\Desktop\\WindowMetrics", "IconFont");
-        userRegistry.removeValue("Control Panel\\Desktop\\WindowMetrics", "MenuFont");
-        userRegistry.removeValue("Control Panel\\Desktop\\WindowMetrics", "MessageFont");
-        userRegistry.removeValue("Control Panel\\Desktop\\WindowMetrics", "SmCaptionFont");
-        userRegistry.removeValue("Control Panel\\Desktop\\WindowMetrics", "StatusFont");
+        byte[] fontNormalData = (new MSLogFont()).setFaceName(faceName).toByteArray();
+        byte[] fontBoldData = (new MSLogFont()).setFaceName(faceName).setWeight(700).toByteArray();
+        userRegistry.setHexValues("Control Panel\\Desktop\\WindowMetrics", "CaptionFont", fontBoldData);
+        userRegistry.setHexValues("Control Panel\\Desktop\\WindowMetrics", "IconFont", fontNormalData);
+        userRegistry.setHexValues("Control Panel\\Desktop\\WindowMetrics", "MenuFont", fontNormalData);
+        userRegistry.setHexValues("Control Panel\\Desktop\\WindowMetrics", "MessageFont", fontNormalData);
+        userRegistry.setHexValues("Control Panel\\Desktop\\WindowMetrics", "SmCaptionFont", fontNormalData);
+        userRegistry.setHexValues("Control Panel\\Desktop\\WindowMetrics", "StatusFont", fontNormalData);
     }
 
     public static void applySystemTweaks(Context context, WineInfo wineInfo) {
         File rootDir = RootFS.find(context).getRootDir();
-        
-        boolean contains = wineInfo.identifier().contains("arm64ec");
 
         File userCacheDir = new File(rootDir, RootFS.USER_CACHE_PATH);
         if (!userCacheDir.isDirectory()) userCacheDir.mkdirs();
@@ -88,15 +79,10 @@ public abstract class WineUtils {
             registryEditor.setStringValue("Software\\Classes\\.reg", null, "REGfile");
             registryEditor.setStringValue("Software\\Classes\\.reg", "Content Type", "application/reg");
             registryEditor.setStringValue("Software\\Classes\\REGfile\\Shell\\Open\\command", null, "C:\\windows\\regedit.exe /C \"%1\"");
-            registryEditor.setStringValue("Software\\Classes\\txtfile\\shell\\open\\command", (String) null, "\"Z:\\opt\\apps\\AkelPad.exe\" \"%1\"");
 
             registryEditor.setStringValue("Software\\Classes\\dllfile\\DefaultIcon", null, "shell32.dll,-154");
             registryEditor.setStringValue("Software\\Classes\\lnkfile\\DefaultIcon", null, "shell32.dll,-30");
             registryEditor.setStringValue("Software\\Classes\\inifile\\DefaultIcon", null, "shell32.dll,-151");
-            if (contains) {
-                registryEditor.setStringValue("Software\\Microsoft\\Wow64\\x86", (String) null, "libwow64fex.dll");
-                registryEditor.setStringValue("Software\\Microsoft\\Wow64\\amd64", (String) null, "libarm64ecfex.dll");
-            }
 
             File corefontsAddedFile = new File(userConfigDir, "corefonts.added");
             if (!corefontsAddedFile.isFile()) {
@@ -105,7 +91,7 @@ public abstract class WineUtils {
             }
         }
 
-        final String[] direct3dLibs = {"d3d8", "d3d9", "d3d10", "d3d10_1", "d3d10core", "d3d11", "d3d12", "d3d12core", "ddraw", "dxgi", "wined3d", "d2d1", "winhttp", "version"};
+        final String[] direct3dLibs = {"d3d8", "d3d9", "d3d10", "d3d10_1", "d3d10core", "d3d11", "d3d12", "d3d12core", "ddraw", "dxgi", "wined3d"};
         final String dllOverridesKey = "Software\\Wine\\DllOverrides";
 
         try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
@@ -115,9 +101,8 @@ public abstract class WineUtils {
             registryEditor.setStringValue("Software\\Winlator\\WFM\\ContextMenu\\7-Zip", "Open Archive", "Z:\\opt\\apps\\7-Zip\\7zFM.exe \"%FILE%\"");
             registryEditor.setStringValue("Software\\Winlator\\WFM\\ContextMenu\\7-Zip", "Extract Here", "Z:\\opt\\apps\\7-Zip\\7zG.exe x \"%FILE%\" -r -o\"%DIR%\" -y");
             registryEditor.setStringValue("Software\\Winlator\\WFM\\ContextMenu\\7-Zip", "Extract to Folder", "Z:\\opt\\apps\\7-Zip\\7zG.exe x \"%FILE%\" -r -o\"%DIR%\\%BASENAME%\" -y");
-            registryEditor.setStringValue("Software\\Wine\\AddonsURL", null, "http://cdn4.52emu.cn/wlt/v10/wine_addons/");
+            registryEditor.setStringValue("Software\\Wine\\AddonsURL", null, "https://raw.githubusercontent.com/brunodev85/winlator/main/wine_addons/");
             registryEditor.setStringValue("Software\\Wine\\Drivers", "Graphics", "x11");
-            registryEditor.setStringValue("Software\\Akelsoft\\AkelPad\\Options", "LanguageModule", "Chinese (Simplified).dll");
         }
     }
 

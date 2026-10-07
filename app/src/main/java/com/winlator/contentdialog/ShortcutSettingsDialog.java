@@ -1,24 +1,16 @@
 package com.winlator.contentdialog;
 
 import android.content.Context;
-import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.RectF;
 import android.view.Menu;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.Spinner;
 
 import com.winlator.ContainerDetailFragment;
-import com.winlator.MainActivity;
 import com.winlator.R;
 import com.winlator.ShortcutsFragment;
 import com.winlator.box64.Box64PresetManager;
@@ -26,12 +18,9 @@ import com.winlator.container.GraphicsDrivers;
 import com.winlator.container.Shortcut;
 import com.winlator.core.AppUtils;
 import com.winlator.container.DXWrapperPicker;
-import com.winlator.core.DefaultVersion;
 import com.winlator.core.EnvVars;
-import com.winlator.core.GeneralComponents;
 import com.winlator.container.GraphicsDriverPicker;
 import com.winlator.core.FileUtils;
-import com.winlator.core.ImageUtils;
 import com.winlator.core.StringUtils;
 import com.winlator.core.WineUtils;
 import com.winlator.inputcontrols.ControlsProfile;
@@ -42,16 +31,12 @@ import com.winlator.win32.PEParser;
 import com.winlator.winhandler.GamepadHandler;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 
 public class ShortcutSettingsDialog extends ContentDialog {
     private final ShortcutsFragment fragment;
     private final Shortcut shortcut;
     private InputControlsManager inputControlsManager;
-    private Bitmap customIcon;
-    private boolean clearIcon;
 
     public ShortcutSettingsDialog(ShortcutsFragment fragment, Shortcut shortcut) {
         super(fragment.getContext(), R.layout.shortcut_settings_dialog);
@@ -72,56 +57,10 @@ public class ShortcutSettingsDialog extends ContentDialog {
         final EditText etName = findViewById(R.id.ETName);
         etName.setText(shortcut.name);
 
-        final ImageView ivIconPreview = findViewById(R.id.IVIconPreview);
-        final View btClearIcon = findViewById(R.id.BTClearIcon);
-        final boolean iconSupported = !shortcut.iconName.isEmpty();
-        final boolean appliedCustomIcon = hasCustomIcon();
-        final Runnable refreshIconPreview = () -> {
-            Bitmap bitmap = customIcon;
-            if (bitmap == null) bitmap = clearIcon ? getOriginalIcon() : shortcut.icon;
-            if (bitmap != null) ivIconPreview.setImageBitmap(bitmap);
-            else ivIconPreview.setImageResource(R.drawable.container_file_link);
-            btClearIcon.setVisibility(iconSupported && (customIcon != null || (appliedCustomIcon && !clearIcon)) ? View.VISIBLE : View.GONE);
-        };
-        refreshIconPreview.run();
-
-        findViewById(R.id.BTSetIcon).setOnClickListener((v) -> {
-            if (!iconSupported) {
-                AppUtils.showToast(context, R.string.custom_icon_not_supported);
-                return;
-            }
-            MainActivity activity = (MainActivity)fragment.getActivity();
-            if (activity == null) return;
-            activity.setOpenFileCallback((uri) -> {
-                Bitmap bitmap = ImageUtils.getBitmapFromUri(context, uri, 256);
-                if (bitmap == null) {
-                    AppUtils.showToast(context, R.string.unable_to_load_image);
-                    return;
-                }
-                customIcon = bitmap;
-                clearIcon = false;
-                refreshIconPreview.run();
-            });
-            Intent intent = new Intent(Intent.ACTION_PICK);
-            intent.setType("image/*");
-            activity.startActivityForResult(intent, MainActivity.OPEN_FILE_REQUEST_CODE);
-        });
-        if (!iconSupported) findViewById(R.id.BTSetIcon).setAlpha(0.4f);
-
-        btClearIcon.setOnClickListener((v) -> {
-            customIcon = null;
-            clearIcon = true;
-            refreshIconPreview.run();
-        });
-
         final EditText etExecArgs = findViewById(R.id.ETExecArgs);
         etExecArgs.setText(shortcut.getExtra("execArgs"));
 
         ContainerDetailFragment.loadScreenSizeSpinner(getContentView(), shortcut.getExtra("screenSize", shortcut.container.getScreenSize()));
-        ContainerDetailFragment.loadScreenOrientationSpinner(getContentView(), shortcut.getExtra("screenOrientation", shortcut.container.getScreenOrientation()));
-        final CheckBox cbSwapResolution = findViewById(R.id.CBSwapResolution);
-        String swapResExtra = shortcut.getExtra("swapResolution");
-        cbSwapResolution.setChecked(!swapResExtra.isEmpty() ? swapResExtra.equals("true") : shortcut.container.isSwapResolution());
 
         final String oldGraphicsDriverConfig = shortcut.getExtra("graphicsDriverConfig", shortcut.container.getGraphicsDriverConfig());
         String selectedGraphicsDriver = shortcut.getExtra("graphicsDriver", shortcut.container.getGraphicsDriver());
@@ -143,23 +82,14 @@ public class ShortcutSettingsDialog extends ContentDialog {
         final CheckBox cbForceFullscreen = findViewById(R.id.CBForceFullscreen);
         cbForceFullscreen.setChecked(shortcut.getExtra("forceFullscreen", "0").equals("1"));
 
-        final CheckBox cbToggleFullscreen = findViewById(R.id.CBToggleFullscreen);
-        cbToggleFullscreen.setChecked(shortcut.getExtra("toggleFullscreen", "0").equals("1"));
-
-        final Spinner sBox64Version = findViewById(R.id.SBox64Version);
-        String box64Version = shortcut.getExtra("box64Version", shortcut.container.getBox64Version());
-        GeneralComponents.initViews(GeneralComponents.Type.BOX64, findViewById(R.id.Box64Toolbox), sBox64Version, box64Version, DefaultVersion.BOX64);
-
         final Spinner sBox64Preset = findViewById(R.id.SBox64Preset);
         Box64PresetManager.loadSpinner(sBox64Preset, shortcut.getExtra("box64Preset", shortcut.container.getBox64Preset()));
 
         final Spinner sControlsProfile = findViewById(R.id.SControlsProfile);
-        loadControlsProfileSpinner(sControlsProfile, shortcut.getExtra("controlsProfile", shortcut.container.getExtra("controlsProfile", "0")));
+        loadControlsProfileSpinner(sControlsProfile, shortcut.getExtra("controlsProfile", "0"));
 
         final Spinner sDInputMapperType = findViewById(R.id.SDInputMapperType);
-        String dinputMapperTypeExtra = shortcut.getExtra("dinputMapperType");
-        if (dinputMapperTypeExtra.isEmpty()) dinputMapperTypeExtra = shortcut.container.getExtra("dinputMapperType", String.valueOf(GamepadHandler.DINPUT_MAPPER_TYPE_STANDARD));
-        sDInputMapperType.setSelection(Byte.parseByte(dinputMapperTypeExtra));
+        sDInputMapperType.setSelection(Byte.parseByte(shortcut.getExtra("dinputMapperType", String.valueOf(GamepadHandler.DINPUT_MAPPER_TYPE_XINPUT))));
 
         ContainerDetailFragment.createWinComponentsTab(getContentView(), shortcut.getExtra("wincomponents", shortcut.container.getWinComponents()));
         final EnvVarsView envVarsView = createEnvVarsTab();
@@ -191,8 +121,8 @@ public class ShortcutSettingsDialog extends ContentDialog {
             PopupMenu popupMenu = new PopupMenu(context, v);
             popupMenu.inflate(R.menu.extra_args_popup_menu);
             popupMenu.setOnMenuItemClickListener((menuItem) -> {
-            String value = String.valueOf(menuItem.getTitle());
-            String execArgs = etExecArgs.getText().toString();
+                String value = String.valueOf(menuItem.getTitle());
+                String execArgs = etExecArgs.getText().toString();
                 if (!execArgs.contains(value)) etExecArgs.setText(!execArgs.isEmpty() ? execArgs+" "+value : value);
                 return true;
             });
@@ -212,9 +142,6 @@ public class ShortcutSettingsDialog extends ContentDialog {
             String execArgs = etExecArgs.getText().toString();
             shortcut.putExtra("execArgs", !execArgs.isEmpty() ? execArgs : null);
             shortcut.putExtra("screenSize", !screenSize.equals(shortcut.container.getScreenSize()) ? screenSize : null);
-            String screenOrientation = ContainerDetailFragment.getScreenOrientation(getContentView());
-            shortcut.putExtra("screenOrientation", !screenOrientation.equals(shortcut.container.getScreenOrientation()) ? screenOrientation : null);
-            shortcut.putExtra("swapResolution", cbSwapResolution.isChecked() != shortcut.container.isSwapResolution() ? String.valueOf(cbSwapResolution.isChecked()) : null);
             shortcut.putExtra("graphicsDriver", !graphicsDriver.equals(shortcut.container.getGraphicsDriver()) ? graphicsDriver : null);
             shortcut.putExtra("dxwrapper", !dxwrapper.equals(shortcut.container.getDXWrapper()) ? dxwrapper : null);
             shortcut.putExtra("dxwrapperConfig", !dxwrapperConfig.equals(shortcut.container.getDXWrapperConfig()) ? dxwrapperConfig : null);
@@ -222,7 +149,6 @@ public class ShortcutSettingsDialog extends ContentDialog {
             shortcut.putExtra("audioDriver", !audioDriver.equals(shortcut.container.getAudioDriver())? audioDriver : null);
             shortcut.putExtra("audioDriverConfig", !audioDriverConfig.equals(shortcut.container.getAudioDriverConfig()) ? audioDriverConfig : null);
             shortcut.putExtra("forceFullscreen", cbForceFullscreen.isChecked() ? "1" : null);
-            shortcut.putExtra("toggleFullscreen", cbToggleFullscreen.isChecked() ? "1" : null);
 
             String wincomponents = ContainerDetailFragment.getWinComponents(getContentView());
             shortcut.putExtra("wincomponents", !wincomponents.equals(shortcut.container.getWinComponents()) ? wincomponents : null);
@@ -230,150 +156,22 @@ public class ShortcutSettingsDialog extends ContentDialog {
             String envVars = envVarsView.getEnvVars();
             shortcut.putExtra("envVars", !envVars.isEmpty() ? envVars : null);
 
-            String box64VersionSelected = StringUtils.parseIdentifier(sBox64Version.getSelectedItem());
-            shortcut.putExtra("box64Version", !box64VersionSelected.equals(shortcut.container.getBox64Version()) ? box64VersionSelected : null);
-
             String box64Preset = Box64PresetManager.getSpinnerSelectedId(sBox64Preset);
             shortcut.putExtra("box64Preset", !box64Preset.equals(shortcut.container.getBox64Preset()) ? box64Preset : null);
 
             ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
             int controlsProfile = sControlsProfile.getSelectedItemPosition() > 0 ? profiles.get(sControlsProfile.getSelectedItemPosition()-1).id : 0;
-            // 始终显式写入（含 None 时的 "0"），以区分"显式禁用"与"从未配置(继承容器)"；启动时 getProfile(0) 返回 null 即不加载任何虚拟按键配置
-            shortcut.putExtra("controlsProfile", String.valueOf(controlsProfile));
+            shortcut.putExtra("controlsProfile", controlsProfile > 0 ? String.valueOf(controlsProfile) : null);
 
             int dinputMapperType = sDInputMapperType.getSelectedItemPosition();
-            String containerDInputMapperType = shortcut.container.getExtra("dinputMapperType", String.valueOf(GamepadHandler.DINPUT_MAPPER_TYPE_STANDARD));
-            shortcut.putExtra("dinputMapperType", dinputMapperType != Byte.parseByte(containerDInputMapperType) ? String.valueOf(dinputMapperType) : null);
+            shortcut.putExtra("dinputMapperType", dinputMapperType != GamepadHandler.DINPUT_MAPPER_TYPE_XINPUT ? String.valueOf(dinputMapperType) : null);
 
             shortcut.saveData();
-            boolean iconChanged = (customIcon != null || clearIcon) && applyCustomIcon();
             if (!shortcut.name.equals(name) && !name.isEmpty()) renameShortcut(name);
-            else if (iconChanged) fragment.refreshContent();
 
             boolean requireRestart = graphicsDriver.equals(GraphicsDrivers.VORTEK) && VortekConfigDialog.isRequireRestart(oldGraphicsDriverConfig, graphicsDriverConfig);
             if (requireRestart) ContentDialog.confirm(context, R.string.the_settings_have_been_changed_do_you_want_to_restart_the_app, () -> AppUtils.restartApplication(context));
         });
-    }
-
-    private ArrayList<File> getIconTargetFiles() {
-        ArrayList<File> targetFiles = new ArrayList<>();
-
-        File hicolorDir = new File(shortcut.container.getRootDir(), ".local/share/icons/hicolor");
-        File[] sizeDirs = hicolorDir.listFiles();
-        if (sizeDirs != null) {
-            for (File sizeDir : sizeDirs) {
-                if (!sizeDir.isDirectory()) continue;
-                File file = new File(new File(sizeDir, "apps"), shortcut.iconName+".png");
-                if (file.isFile() && !targetFiles.contains(file)) targetFiles.add(file);
-            }
-        }
-
-        if (shortcut.iconFile != null && shortcut.iconFile.isFile() && !targetFiles.contains(shortcut.iconFile)) {
-            targetFiles.add(shortcut.iconFile);
-        }
-
-        return targetFiles;
-    }
-
-    private static File getBackupFile(File file) {
-        return new File(file.getParentFile(), file.getName()+".orig");
-    }
-
-    private boolean hasCustomIcon() {
-        for (File file : getIconTargetFiles()) {
-            File backupFile = getBackupFile(file);
-            if (backupFile.isFile() && backupFile.length() > 0) return true;
-        }
-        return false;
-    }
-
-    private Bitmap getOriginalIcon() {
-        Bitmap bitmap = null;
-        int maxSize = 0;
-
-        for (File file : getIconTargetFiles()) {
-            File backupFile = getBackupFile(file);
-            if (!backupFile.isFile() || backupFile.length() == 0) continue;
-
-            int size = getImageSize(backupFile);
-            if (size > maxSize) {
-                Bitmap decoded = BitmapFactory.decodeFile(backupFile.getPath());
-                if (decoded != null) {
-                    bitmap = decoded;
-                    maxSize = size;
-                }
-            }
-        }
-
-        return bitmap;
-    }
-
-    private boolean applyCustomIcon() {
-        final Context context = fragment.getContext();
-        if (context == null) return false;
-
-        if (shortcut.iconName.isEmpty()) {
-            AppUtils.showToast(context, R.string.custom_icon_not_supported);
-            return false;
-        }
-
-        ArrayList<File> targetFiles = getIconTargetFiles();
-        if (targetFiles.isEmpty()) targetFiles.add(new File(shortcut.container.getIconsDir(256), shortcut.iconName+".png"));
-
-        for (File file : targetFiles) {
-            File backupFile = getBackupFile(file);
-
-            if (clearIcon) {
-                if (backupFile.isFile()) {
-                    if (backupFile.length() > 0) FileUtils.copy(backupFile, file);
-                    else file.delete();
-                    backupFile.delete();
-                }
-                continue;
-            }
-
-            if (!backupFile.isFile()) {
-                try {
-                    if (file.isFile()) FileUtils.copy(file, backupFile);
-                    else backupFile.createNewFile();
-                }
-                catch (IOException e) {}
-            }
-
-            int size = getImageSize(file);
-            if (size <= 0) size = Math.max(customIcon.getWidth(), customIcon.getHeight());
-            if (size <= 0) size = 256;
-
-            Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-            Canvas canvas = new Canvas(bitmap);
-            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-            float scale = Math.min((float)size / customIcon.getWidth(), (float)size / customIcon.getHeight());
-            float width = customIcon.getWidth() * scale;
-            float height = customIcon.getHeight() * scale;
-            float left = (size - width) * 0.5f;
-            float top = (size - height) * 0.5f;
-            canvas.drawBitmap(customIcon, null, new RectF(left, top, left + width, top + height), paint);
-
-            File parent = file.getParentFile();
-            if (parent != null && !parent.isDirectory()) parent.mkdirs();
-
-            try (FileOutputStream fos = new FileOutputStream(file)) {
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
-            }
-            catch (IOException e) {
-                AppUtils.showToast(context, R.string.unable_to_load_image);
-            }
-            bitmap.recycle();
-        }
-
-        return true;
-    }
-
-    private static int getImageSize(File file) {
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(file.getPath(), options);
-        return Math.max(options.outWidth, options.outHeight);
     }
 
     private void renameShortcut(String newName) {

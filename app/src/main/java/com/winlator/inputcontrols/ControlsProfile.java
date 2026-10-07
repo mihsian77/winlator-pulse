@@ -22,18 +22,9 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
     private String name;
     private float cursorSpeed = 1.0f;
     private boolean disableMouseInput = false;
-    private byte touchpadMode = 0;
-    private boolean moveCursorToTouchpoint = false;
-    private boolean twoFingersDrag = true;
-    private boolean twoFingersRightClick = true;
-    private boolean longPressRightClick = true;
-    private boolean pinchZoomEnabled = false;
-    private boolean shortDragEnabled = false;
-    private boolean twoFingersScroll = true;
     private final ArrayList<ControlElement> elements = new ArrayList<>();
     private final ArrayList<ExternalController> controllers = new ArrayList<>();
     private final List<ControlElement> immutableElements = Collections.unmodifiableList(elements);
-    private final List<ExternalController> immutableControllers = Collections.unmodifiableList(controllers);
     private boolean elementsLoaded = false;
     private boolean controllersLoaded = false;
     private boolean virtualGamepad = false;
@@ -81,70 +72,6 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
         this.disableMouseInput = disableMouseInput;
     }
 
-    public byte getTouchpadMode() {
-        return touchpadMode;
-    }
-
-    public void setTouchpadMode(byte touchpadMode) {
-        this.touchpadMode = touchpadMode;
-    }
-
-    public boolean isMoveCursorToTouchpoint() {
-        return moveCursorToTouchpoint;
-    }
-
-    public void setMoveCursorToTouchpoint(boolean moveCursorToTouchpoint) {
-        this.moveCursorToTouchpoint = moveCursorToTouchpoint;
-    }
-
-    public boolean isTwoFingersDrag() {
-        return twoFingersDrag;
-    }
-
-    public void setTwoFingersDrag(boolean twoFingersDrag) {
-        this.twoFingersDrag = twoFingersDrag;
-    }
-
-    public boolean isTwoFingersRightClick() {
-        return twoFingersRightClick;
-    }
-
-    public void setTwoFingersRightClick(boolean twoFingersRightClick) {
-        this.twoFingersRightClick = twoFingersRightClick;
-    }
-
-    public boolean isLongPressRightClick() {
-        return longPressRightClick;
-    }
-
-    public void setLongPressRightClick(boolean longPressRightClick) {
-        this.longPressRightClick = longPressRightClick;
-    }
-
-    public boolean isPinchZoomEnabled() {
-        return pinchZoomEnabled;
-    }
-
-    public void setPinchZoomEnabled(boolean pinchZoomEnabled) {
-        this.pinchZoomEnabled = pinchZoomEnabled;
-    }
-
-    public boolean isShortDragEnabled() {
-        return shortDragEnabled;
-    }
-
-    public void setShortDragEnabled(boolean shortDragEnabled) {
-        this.shortDragEnabled = shortDragEnabled;
-    }
-
-    public boolean isTwoFingersScroll() {
-        return twoFingersScroll;
-    }
-
-    public void setTwoFingersScroll(boolean twoFingersScroll) {
-        this.twoFingersScroll = twoFingersScroll;
-    }
-
     public boolean isVirtualGamepad() {
         return virtualGamepad;
     }
@@ -185,10 +112,6 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
         return null;
     }
 
-    public List<ExternalController> getControllers() {
-        return immutableControllers;
-    }
-
     @NonNull
     @Override
     public String toString() {
@@ -213,15 +136,7 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
             data.put("name", name);
             data.put("cursorSpeed", Float.valueOf(cursorSpeed));
             if (disableMouseInput) data.put("disableMouseInput", disableMouseInput);
-            if (touchpadMode != 0) data.put("touchpadMode", touchpadMode);
-            if (moveCursorToTouchpoint) data.put("moveCursorToTouchpoint", moveCursorToTouchpoint);
-            if (!twoFingersDrag) data.put("twoFingersDrag", twoFingersDrag);
-            if (!twoFingersRightClick) data.put("twoFingersRightClick", twoFingersRightClick);
-            if (!longPressRightClick) data.put("longPressRightClick", longPressRightClick);
-            if (pinchZoomEnabled) data.put("pinchZoomEnabled", pinchZoomEnabled);
-            if (shortDragEnabled) data.put("shortDragEnabled", shortDragEnabled);
-            if (!twoFingersScroll) data.put("twoFingersScroll", twoFingersScroll);
-            
+
             JSONArray elementsJSONArray = new JSONArray();
             if (!elementsLoaded && file.isFile()) {
                 JSONObject profileJSONObject = new JSONObject(FileUtils.readString(file));
@@ -328,20 +243,9 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
                     element.setToggleSwitch(elementJSONObject.getBoolean("toggleSwitch"));
                     element.setX((int)(elementJSONObject.getDouble("x") * inputControlsView.getMaxWidth()));
                     element.setY((int)(elementJSONObject.getDouble("y") * inputControlsView.getMaxHeight()));
-                    element.setPercentX((float)elementJSONObject.getDouble("x"));
-                    element.setPercentY((float)elementJSONObject.getDouble("y"));
                     element.setScale((float)elementJSONObject.getDouble("scale"));
                     element.setText(elementJSONObject.getString("text"));
                     element.setIconId(elementJSONObject.getInt("iconId"));
-                    if (elementJSONObject.has("mouseBtn")) element.setMouseBtn(ControlElement.MouseBtn.valueOf(elementJSONObject.getString("mouseBtn")));
-                    if (elementJSONObject.has("xDrift")) element.setXDrift((short)elementJSONObject.getInt("xDrift"));
-                    if (elementJSONObject.has("yDrift")) element.setYDrift((short)elementJSONObject.getInt("yDrift"));
-                    if (elementJSONObject.has("deadZone")) element.setDeadZone((short)elementJSONObject.getInt("deadZone"));
-                    if (elementJSONObject.has("customIconData")) element.setCustomIconData(elementJSONObject.getString("customIconData"));
-                    if (elementJSONObject.has("pressedColor")) element.setPressedColor(elementJSONObject.getInt("pressedColor"));
-                    if (elementJSONObject.has("textColor")) element.setTextColor(elementJSONObject.getInt("textColor"));
-                    if (elementJSONObject.has("iconScale")) element.setIconScale((float)elementJSONObject.getDouble("iconScale"));
-                    if (elementJSONObject.has("iconOpacity")) element.setIconOpacity((float)elementJSONObject.getDouble("iconOpacity"));
                     if (elementJSONObject.has("range")) element.setRange(ControlElement.Range.valueOf(elementJSONObject.getString("range")));
                     if (elementJSONObject.has("orientation")) element.setOrientation((byte)elementJSONObject.getInt("orientation"));
                     if (elementJSONObject.has("mouseMoveMode")) element.setMouseMoveMode(true);

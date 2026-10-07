@@ -24,8 +24,6 @@ import android.widget.TextView;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.os.PowerManager;
-import android.provider.Settings;
 import androidx.core.content.ContextCompat;
 import android.app.NotificationManager;
 
@@ -48,11 +46,11 @@ import com.winlator.contentdialog.SoundFontTestDialog;
 import com.winlator.core.AppUtils;
 import com.winlator.core.ArrayUtils;
 import com.winlator.core.Callback;
+import com.winlator.core.DefaultVersion;
 import com.winlator.core.FileUtils;
+import com.winlator.core.GeneralComponents;
 import com.winlator.core.LocaleHelper;
 import com.winlator.core.PreloaderDialog;
-import com.winlator.core.DefaultVersion;
-import com.winlator.core.GeneralComponents;
 import com.winlator.core.StringUtils;
 import com.winlator.core.WineInfo;
 import com.winlator.core.WineInstaller;
@@ -81,29 +79,6 @@ public class SettingsFragment extends Fragment {
     private PreloaderDialog preloaderDialog;
     private SharedPreferences preferences;
     private boolean midiDeviceCallbackRegistered = false;
-    // 用户开启"后台保护"但尚未加入电池优化白名单时置位，
-    // 用于从系统设置页返回后复查：未获豁免则撤销勾选
-    private boolean pendingBatteryExemption = false;
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        // 从系统"电池优化"设置页返回：已获豁免则保持勾选，未获则撤销
-        if (!pendingBatteryExemption) return;
-        pendingBatteryExemption = false;
-
-        View view = getView();
-        if (view == null) return;
-        PowerManager powerManager = (PowerManager)requireContext().getSystemService(Context.POWER_SERVICE);
-        if (powerManager == null) return;
-
-        if (powerManager.isIgnoringBatteryOptimizations(requireContext().getPackageName())) return;
-
-        // 用户在系统页拒绝：撤销勾选（只改 UI，不落盘，本页统一由 BTConfirm 保存）。
-        // 标志已在上方清除，这里的 setChecked 重入监听器时不会影响判定。
-        CheckBox cbEnableBackgroundProtection = view.findViewById(R.id.CBEnableBackgroundProtection);
-        cbEnableBackgroundProtection.setChecked(false);
-    }
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -147,40 +122,28 @@ public class SettingsFragment extends Fragment {
         String midiInputDevice = preferences.getString("midi_input_device", "auto");
         loadMIDIInputDeviceSpinner(sMIDIInputDevice, midiInputDevice);
 
+        final Spinner sBox64Version = view.findViewById(R.id.SBox64Version);
+        String box64Version = preferences.getString("box64_version", null);
+        GeneralComponents.initViews(GeneralComponents.Type.BOX64, view.findViewById(R.id.Box64Toolbox), sBox64Version, box64Version, DefaultVersion.BOX64);
+
         final Spinner sBox64Preset = view.findViewById(R.id.SBox64Preset);
         loadBox64PresetSpinner(view, sBox64Preset);
 
         final RadioGroup rgAppTheme = view.findViewById(R.id.RGAppTheme);
-        final int oldAppThemeId = preferences.getInt("app_theme", APP_THEME_LIGHT) == APP_THEME_DARK ? R.id.RBDark : R.id.RBLight;
+        final int oldAppThemeId = preferences.getInt("app_theme", APP_THEME_DARK) == APP_THEME_DARK ? R.id.RBDark : R.id.RBLight;
         rgAppTheme.check(oldAppThemeId);
 
+        final CheckBox cbMoveCursorToTouchpoint = view.findViewById(R.id.CBMoveCursorToTouchpoint);
+        cbMoveCursorToTouchpoint.setChecked(preferences.getBoolean("move_cursor_to_touchpoint", false));
+
         final CheckBox cbCapturePointerOnExternalMouse = view.findViewById(R.id.CBCapturePointerOnExternalMouse);
-        cbCapturePointerOnExternalMouse.setChecked(preferences.getBoolean("capture_pointer_on_external_mouse", false));
+        cbCapturePointerOnExternalMouse.setChecked(preferences.getBoolean("capture_pointer_on_external_mouse", true));
 
         final CheckBox cbOpenAndroidBrowserFromWine = view.findViewById(R.id.CBOpenAndroidBrowserFromWine);
         cbOpenAndroidBrowserFromWine.setChecked(preferences.getBoolean("open_android_browser_from_wine", true));
 
         final CheckBox cbUseAndroidClipboardOnWine = view.findViewById(R.id.CBUseAndroidClipboardOnWine);
         cbUseAndroidClipboardOnWine.setChecked(preferences.getBoolean("use_android_clipboard_on_wine", false));
-
-        final CheckBox cbPauseOnBackground = view.findViewById(R.id.CBPauseOnBackground);
-        cbPauseOnBackground.setChecked(preferences.getBoolean("pause_on_background", true));
-
-        final CheckBox cbAllowExternalLaunch = view.findViewById(R.id.CBAllowExternalLaunch);
-        cbAllowExternalLaunch.setChecked(preferences.getBoolean(ExternalLaunchActivity.PREF_ALLOW_EXTERNAL_LAUNCH, true));
-
-        final Spinner sClipboardCharset = view.findViewById(R.id.SClipboardCharset);
-        String clipboardCharset = preferences.getString("clipboard_charset", "GBK");
-        String[] charsetEntries = getResources().getStringArray(R.array.clipboard_charset_entries);
-        for (int i = 0; i < charsetEntries.length; i++) {
-            if (charsetEntries[i].equals(clipboardCharset)) {
-                sClipboardCharset.setSelection(i);
-                break;
-            }
-        }
-
-        final CheckBox cbChineseInputPaste = view.findViewById(R.id.CBChineseInputPaste);
-        cbChineseInputPaste.setChecked(preferences.getBoolean("chinese_input_paste_mode", true));
 
         final CheckBox cbEnableBackgroundWakelock = view.findViewById(R.id.CBEnableBackgroundWakelock);
         cbEnableBackgroundWakelock.setChecked(preferences.getBoolean("enable_background_wakelock", false));
@@ -191,12 +154,7 @@ public class SettingsFragment extends Fragment {
             cbEnableBackgroundWakelock.setVisibility(isChecked ? View.VISIBLE : View.GONE);
             if (!isChecked) cbEnableBackgroundWakelock.setChecked(false);
 
-            if (!isChecked) {
-                pendingBatteryExemption = false;
-                return;
-            }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (isChecked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                     // We force a temporary notification channel so that the notification permission request window appears on APIs 33+
                     String tempId = "permission_trigger";
@@ -208,23 +166,6 @@ public class SettingsFragment extends Fragment {
                         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
                         if (nm != null) nm.deleteNotificationChannel(tempId);
                     }, 1000);
-                }
-            }
-
-            // 后台保活的关键是加入电池优化白名单。未加入则跳系统设置页，
-            // 勾选状态先保留，返回后由 onResume() 决定保留还是撤销。
-            // 放在通知权限触发之后：跳走会让本监听器不再重入，先做需要前台的那一步。
-            PowerManager powerManager = (PowerManager)context.getSystemService(Context.POWER_SERVICE);
-            if (powerManager != null && !powerManager.isIgnoringBatteryOptimizations(context.getPackageName())) {
-                pendingBatteryExemption = true;
-                try {
-                    Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                    intent.setData(Uri.parse("package:"+context.getPackageName()));
-                    context.startActivity(intent);
-                }
-                catch (Exception e) {
-                    // 少数 ROM 无此系统页面：不阻断用户，保持勾选
-                    pendingBatteryExemption = false;
                 }
             }
         });
@@ -244,14 +185,6 @@ public class SettingsFragment extends Fragment {
 
         final CheckBox cbSaveLogsToFile = view.findViewById(R.id.CBSaveLogsToFile);
         cbSaveLogsToFile.setChecked(preferences.getBoolean("save_logs_to_file", false));
-
-        final CheckBox cbLogcatToFile = view.findViewById(R.id.CBLogcatToFile);
-        cbLogcatToFile.setChecked(preferences.getBoolean("save_logcat_to_file", false));
-        cbLogcatToFile.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (isChecked) {
-                AppUtils.showToast(context, context.getString(R.string.logcat_saved_to, "WinlatorCN-logcat.txt"));
-            }
-        });
 
         final EditText etLogFile = view.findViewById(R.id.ETLogFile);
         final String defaultLogPath = LogView.getLogFile().getPath();
@@ -292,7 +225,9 @@ public class SettingsFragment extends Fragment {
         view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
             SharedPreferences.Editor editor = preferences.edit();
             editor.putString("soundfont", sSoundFont.getSelectedItem().toString());
+            editor.putString("box64_version", StringUtils.parseIdentifier(sBox64Version.getSelectedItem()));
             editor.putString("box64_preset", Box64PresetManager.getSpinnerSelectedId(sBox64Preset));
+            editor.putBoolean("move_cursor_to_touchpoint", cbMoveCursorToTouchpoint.isChecked());
             editor.putBoolean("capture_pointer_on_external_mouse", cbCapturePointerOnExternalMouse.isChecked());
             editor.putFloat("cursor_speed", sbCursorSpeed.getValue() / 100.0f);
             editor.putFloat("cursor_scale", sbCursorSize.getValue() / 100.0f);
@@ -300,13 +235,8 @@ public class SettingsFragment extends Fragment {
             editor.putBoolean("enable_wine_debug", cbEnableWineDebug.isChecked());
             editor.putInt("box64_logs", sBox64Logs.getSelectedItemPosition());
             editor.putBoolean("save_logs_to_file", cbSaveLogsToFile.isChecked());
-            editor.putBoolean("save_logcat_to_file", cbLogcatToFile.isChecked());
             editor.putBoolean("open_android_browser_from_wine", cbOpenAndroidBrowserFromWine.isChecked());
             editor.putBoolean("use_android_clipboard_on_wine", cbUseAndroidClipboardOnWine.isChecked());
-            editor.putBoolean("pause_on_background", cbPauseOnBackground.isChecked());
-            editor.putBoolean(ExternalLaunchActivity.PREF_ALLOW_EXTERNAL_LAUNCH, cbAllowExternalLaunch.isChecked());
-            editor.putString("clipboard_charset", sClipboardCharset.getSelectedItem().toString());
-            editor.putBoolean("chinese_input_paste_mode", cbChineseInputPaste.isChecked());
             editor.putBoolean("enable_background_protection", cbEnableBackgroundProtection.isChecked());
             editor.putBoolean("enable_background_wakelock", cbEnableBackgroundWakelock.isChecked());
             editor.putBoolean("save_mem_on_run_from_steam", cbSaveMemOnRunFromSteam.isChecked());
@@ -326,9 +256,8 @@ public class SettingsFragment extends Fragment {
             boolean restartApp = oldLCIndex != newLCIndex || oldAppThemeId != newAppThemeId;
 
             int midiInputDevicePosition = sMIDIInputDevice.getSelectedItemPosition();
-            Object selectedItem = sMIDIInputDevice.getSelectedItem();
             editor.putString("midi_input_device", midiInputDevicePosition == 0 ? "none" :
-                                                 (midiInputDevicePosition == 1 ? "auto" : selectedItem != null ? selectedItem.toString() : "auto"));
+                                                 (midiInputDevicePosition == 1 ? "auto" : sMIDIInputDevice.getSelectedItem().toString()));
 
             String logPath = etLogFile.getText().toString().trim();
             if (!logPath.equals(defaultLogPath) && !logPath.isEmpty()) {
@@ -342,9 +271,6 @@ public class SettingsFragment extends Fragment {
             else if (preferences.contains("wine_debug_channels")) editor.remove("wine_debug_channels");
 
             if (editor.commit()) {
-                // 关闭开关时停掉可能在跑的抓取；开启不在此处抓——logcat 只覆盖容器会话，
-                // 由 XServerDisplayActivity 启动时清空重抓。
-                if (!preferences.getBoolean("save_logcat_to_file", false)) MainApplication.stopLogcatSession();
                 if (!restartApp) {
                     NavigationView navigationView = getActivity().findViewById(R.id.NavigationView);
                     navigationView.setCheckedItem(R.id.menu_item_containers);
@@ -578,24 +504,15 @@ public class SettingsFragment extends Fragment {
     public static void resetPreferenceVersions(AppCompatActivity activity) {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(activity);
         SharedPreferences.Editor editor = preferences.edit();
+        editor.putString("box64_version", DefaultVersion.BOX64);
         editor.remove("current_box64_version");
         editor.remove("current_graphics_driver");
         editor.apply();
     }
 
     private void loadMIDIInputDeviceSpinner(final Spinner sMIDIInputDevice, final String selectedValue) {
-        if (!isAdded()) return;
         Context context = getContext();
         MidiManager mm = (MidiManager)context.getSystemService(Context.MIDI_SERVICE);
-        if (mm == null) {
-            ArrayList<String> items = new ArrayList<>();
-            items.add(context.getString(R.string.none));
-            items.add(context.getString(R.string.auto));
-            sMIDIInputDevice.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, items));
-            sMIDIInputDevice.setSelection(selectedValue.equals("none") ? 0 : 1, false);
-            return;
-        }
-
         MidiDeviceInfo[] infos = mm.getDevices();
 
         if (!midiDeviceCallbackRegistered) {
@@ -620,8 +537,7 @@ public class SettingsFragment extends Fragment {
         for (MidiDeviceInfo info : infos) {
             if (info.getOutputPortCount() > 0) {
                 Bundle properties = info.getProperties();
-                String name = properties.getString(MidiDeviceInfo.PROPERTY_NAME);
-                if (name != null) items.add(name);
+                items.add(properties.getString(MidiDeviceInfo.PROPERTY_NAME));
             }
         }
 
