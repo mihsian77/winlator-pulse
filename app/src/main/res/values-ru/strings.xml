@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Winlator Pulse</string>
+    <string name="app_name">Winlator</string>
     <string name="run">Запустить</string>
     <string name="edit">Редактировать</string>
     <string name="remove">Удалить</string>
@@ -188,7 +188,6 @@
     <string name="removing_files">Удаление файлов...</string>
     <string name="disable_mouse_input">Отключить ввод с помощью мыши</string>
     <string name="move_cursor_to_touchpoint">Переместите курсор в точку касания</string>
-    <string name="pinch_zoom">Масштабирование двумя пальцами</string>
     <string name="dpi_font_size">DPI (Размер шрифта)</string>
     <string name="gamepad_model">Модель геймпада</string>
     <string name="file_manager">Файловый менеджер</string>

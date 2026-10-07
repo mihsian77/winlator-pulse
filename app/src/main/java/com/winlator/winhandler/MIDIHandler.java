@@ -62,14 +62,12 @@ public class MIDIHandler {
         if (selectedDevice.equals("none")) return;
 
         MidiManager mm = (MidiManager)winHandler.activity.getSystemService(Context.MIDI_SERVICE);
-        if (mm == null) return;
         MidiDeviceInfo[] infos = mm.getDevices();
 
         for (MidiDeviceInfo info : infos) {
             if (info.getOutputPortCount() > 0) {
                 Bundle properties = info.getProperties();
-                String name = properties.getString(MidiDeviceInfo.PROPERTY_NAME);
-                if (selectedDevice.equals("auto") || (name != null && selectedDevice.equalsIgnoreCase(name))) {
+                if (selectedDevice.equals("auto") || selectedDevice.equalsIgnoreCase(properties.getString(MidiDeviceInfo.PROPERTY_NAME))) {
                     mm.openDevice(info, (device) -> {
                         synchronized (outputPortReceiver) {
                             if (device == null || outputPort != null) return;

@@ -3,7 +3,6 @@ package com.winlator.core;
 import android.content.Context;
 
 import com.winlator.container.Container;
-import java.util.Locale;
 import com.winlator.win32.MSLink;
 
 import org.json.JSONArray;
@@ -72,8 +71,7 @@ public abstract class WineStartMenuCreator {
         removeOldMenu(containerStartMenuFile, startMenuDir);
 
         try {
-            String startMenuFile = Locale.getDefault().getLanguage().equals("zh") ? "wine_startmenu_cn.json" : "wine_startmenu.json";
-            JSONArray data = new JSONArray(FileUtils.readString(context, startMenuFile));
+            JSONArray data = new JSONArray(FileUtils.readString(context, "wine_startmenu.json"));
             FileUtils.writeString(containerStartMenuFile, data.toString());
             for (int i = 0; i < data.length(); i++) createMenuEntry(data.getJSONObject(i), startMenuDir);
         }

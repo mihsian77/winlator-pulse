@@ -25,7 +25,7 @@ import java.util.Locale;
 
 public abstract class GeneralComponents {
     public enum InstallMode {DOWNLOAD, FILE, BOTH}
-    private static final String INSTALLABLE_COMPONENTS_URL = "http://cdn4.52emu.cn/wlt/v10/installable_components/%s";
+    private static final String INSTALLABLE_COMPONENTS_URL = "https://raw.githubusercontent.com/brunodev85/winlator/main/installable_components/%s";
 
     public enum Type {
         BOX64, TURNIP, DXVK, VKD3D, WINED3D, SOUNDFONT, ADRENOTOOLS_DRIVER;
@@ -122,13 +122,13 @@ public abstract class GeneralComponents {
 
         switch (type) {
             case BOX64:
-                items = new String[]{DefaultVersion.BOX64, "0.3.6.0", "0.3.8"};
+                items = new String[]{DefaultVersion.BOX64};
                 break;
             case TURNIP:
-                items = new String[]{DefaultVersion.TURNIP, "25.3.0"};
+                items = new String[]{DefaultVersion.TURNIP};
                 break;
             case DXVK:
-                items = new String[]{DefaultVersion.MINOR_DXVK, DefaultVersion.MAJOR_DXVK, "2.7.1-binsem-gpl"};
+                items = new String[]{DefaultVersion.MINOR_DXVK, DefaultVersion.MAJOR_DXVK};
                 break;
             case VKD3D:
                 items = new String[]{DefaultVersion.VKD3D};
@@ -275,15 +275,10 @@ public abstract class GeneralComponents {
     private static void openFileForInstall(final MainActivity activity, final Type type, final Spinner spinner, final String defaultItem) {
         activity.setOpenFileCallback((uri) -> {
             String path = FileUtils.getFilePathFromUri(uri);
-            File source;
-            if (path != null) {
-                source = new File(path);
-            } else if (type != Type.SOUNDFONT) {
-                source = FileUtils.copyUriToTempFile(activity, uri, type.lowerName());
-                if (source == null) return;
-            } else return;
+            if (path == null) return;
 
             try {
+                File source = new File(path);
                 switch (type) {
                     case SOUNDFONT: {
                         String filename = FileUtils.getName(path);
