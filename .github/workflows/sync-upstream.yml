@@ -38,31 +38,28 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git"
 
-      - name: 添加官方上游并拉取
+      - name: 克隆官方上游到临时目录
         run: |
-          git fetch origin main
-          git remote remove upstream 2>/dev/null || true
-          git remote add upstream "https://github.com/${UPSTREAM_REPO}.git"
-          git fetch upstream "${UPSTREAM_BRANCH}" --depth=50 2>&1 | tail -3
+          git clone --depth 1 --branch "${UPSTREAM_BRANCH}" "https://github.com/${UPSTREAM_REPO}.git" /tmp/upstream-official 2>&1 | tail -2
           echo "=== 官方上游最新提交 ==="
-          git log upstream/${UPSTREAM_BRANCH} --oneline -3
+          cd /tmp/upstream-official && git log --oneline -3
 
       - name: 检查上游是否有新提交
         id: check
         run: |
           LOCAL_DATE=$(git log -1 --format=%ct origin/main)
-          UPSTREAM_DATE=$(git log -1 --format=%ct upstream/${UPSTREAM_BRANCH})
+          UPSTREAM_DATE=$(cd /tmp/upstream-official && git log -1 --format=%ct)
           echo "本地最新提交日期: $LOCAL_DATE  官方最新提交日期: $UPSTREAM_DATE"
           if [ "$UPSTREAM_DATE" -le "$LOCAL_DATE" ] && [ "${{ github.event.inputs.force_sync }}" != "true" ]; then
             echo "up_to_date=true" >> $GITHUB_OUTPUT
             echo "官方无新提交，跳过。"
           else
             echo "up_to_date=false" >> $GITHUB_OUTPUT
-            echo "官方有新提交（或强制同步），开始合并。"
+            echo "官方有新提交（或强制同步），开始同步。"
           fi
 
-      - name: 合并官方上游到 auto-sync 分支
-        id: merge
+      - name: 用 rsync 同步官方 Java/res 代码
+        id: sync
         if: steps.check.outputs.up_to_date == 'false'
         run: |
           BRANCH="auto-sync-official"
@@ -70,17 +67,12 @@ jobs:
 
           git checkout -B "$BRANCH" origin/main
 
-          # Pulse 定制文件保护名单
-          OURS_FILES=(
+          # Pulse 定制文件保护名单（rsync 排除列表）
+          EXCLUDE_FILES=(
             "README.md"
             "gradle.properties"
             "app/build.gradle"
             "app/src/main/AndroidManifest.xml"
-            "app/src/main/cpp/CMakeLists.txt"
-            "app/src/main/cpp/winlator/src/jni_onload.c"
-            "app/src/main/cpp/winlator/include/winlator.h"
-            "app/src/main/cpp/vortekrenderer/include/vortek.h"
-            "app/src/main/cpp/gladiorenderer/include/gladio.h"
             "app/src/main/java/com/winlator/MainApplication.java"
             "app/src/main/java/com/winlator/core/AppUtils.java"
             "app/src/main/java/com/winlator/core/PatchUtils.java"
@@ -111,65 +103,69 @@ jobs:
             ".github/workflows/sync-upstream.yml"
           )
 
-          is_ours() {
-            local f="$1" e
-            for e in "${OURS_FILES[@]}"; do [ "$e" = "$f" ] && return 0; done
-            return 1
-          }
+          EXCLUDE_ARGS=""
+          for f in "${EXCLUDE_FILES[@]}"; do
+            EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude=$f"
+          done
 
-          if git merge upstream/${UPSTREAM_BRANCH} --no-edit --allow-unrelated-histories; then
-            echo "=== 官方合并成功（无冲突）==="
-          else
-            echo "=== merge 有冲突，按保护策略逐文件处理 ==="
-            git diff --name-only --diff-filter=U | while read f; do
-              if git ls-files -u "$f" | awk '{print $3}' | grep -q '^3$'; then
-                if is_ours "$f"; then
-                  echo "保留 Pulse 版本: $f"
-                  git checkout --ours "$f"
-                else
-                  echo "采用官方新版: $f"
-                  git checkout --theirs "$f"
-                fi
-              else
-                git checkout --ours "$f" 2>/dev/null || git rm -f "$f" 2>/dev/null || true
-              fi
-              git add "$f" 2>/dev/null || true
-            done
-            git commit --no-edit || echo "无变更可提交，跳过"
-          fi
+          echo "=== 同步官方 Java 源码 ==="
+          rsync -av --delete $EXCLUDE_ARGS \
+            /tmp/upstream-official/app/src/main/java/ \
+            app/src/main/java/ 2>&1 | tail -20
 
-          git add -A 2>/dev/null || true
-          if git diff --cached --quiet 2>/dev/null; then
+          echo ""
+          echo "=== 同步官方 res 资源 ==="
+          rsync -av --delete $EXCLUDE_ARGS \
+            /tmp/upstream-official/app/src/main/res/ \
+            app/src/main/res/ 2>&1 | tail -20
+
+          echo ""
+          echo "=== 变更统计 ==="
+          git add -A
+          CHANGED=$(git diff --cached --name-only | wc -l)
+          echo "变更文件数: $CHANGED"
+          git diff --cached --name-only | head -30
+
+          if [ "$CHANGED" -eq 0 ]; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "与 main 无差异，不开 PR。"
+            echo "无实际变更，不开 PR。"
           else
-            git commit --amend --no-edit 2>/dev/null || git commit --no-edit
+            git commit -m "sync: 同步官方上游代码
+
+自动同步 brunodev85/winlator-app 最新 Java 源码和 res 资源。
+Pulse 原创/共存定制文件已排除，native 层和组件包不同步。" 2>&1 | tail -3
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "有差异，准备开 PR。"
           fi
 
       - name: 推送 auto-sync 分支
-        if: steps.check.outputs.up_to_date == 'false' && steps.merge.outputs.has_changes == 'true'
+        if: steps.check.outputs.up_to_date == 'false' && steps.sync.outputs.has_changes == 'true'
         run: |
-          BRANCH="${{ steps.merge.outputs.sync_branch }}"
+          BRANCH="${{ steps.sync.outputs.sync_branch }}"
           git push --force origin "$BRANCH" 2>&1 | tail -3
 
       - name: 创建/更新 PR 到 main
-        if: steps.check.outputs.up_to_date == 'false' && steps.merge.outputs.has_changes == 'true'
+        if: steps.check.outputs.up_to_date == 'false' && steps.sync.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          BRANCH="${{ steps.merge.outputs.sync_branch }}"
-          UPSTREAM_MSG=$(git log upstream/${UPSTREAM_BRANCH} --oneline -5 2>/dev/null | sed 's/^/  /')
+          BRANCH="${{ steps.sync.outputs.sync_branch }}"
+          UPSTREAM_MSG=$(cd /tmp/upstream-official && git log --oneline -5 | sed 's/^/  /')
           BODY="## 自动同步官方上游 brunodev85/winlator-app
 
-          此 PR 由定时工作流自动创建，同步官方 Winlator 最新代码。
+          此 PR 由定时工作流自动创建，同步官方 Winlator 最新 Java 源码和 res 资源。
+
+          ### 同步范围
+          - Java 源码（app/src/main/java/）
+          - 资源文件（app/src/main/res/）
+          - 不同步 native 层（cpp/，Pulse 有共存定制）
+          - 不同步组件包（assets/，Pulse 自选版本）
+
+          ### 保护文件
+          Pulse 原创/共存定制文件已排除：XRandR、后台安装、进度对话框、共存核心、中文资源、构建配置。
 
           ### 说明
-          - 官方更新已按保护策略合并：Pulse 原创/共存定制文件保留我们的版本
-          - native 层（cpp/）和组件包（assets/）官方 app 子模块不含，不受影响
           - 此 PR 会自动触发 CI 构建验证
-          - **构建绿色后再合并**
+          - 构建绿色后再合并
 
           ### 官方最近提交
           \`\`\`
