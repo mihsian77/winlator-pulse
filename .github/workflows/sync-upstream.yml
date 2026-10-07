@@ -102,6 +102,7 @@ jobs:
 
           # res 资源保护名单（路径相对于 res/ 目录）
           RES_EXCLUDES=(
+            # hostei33 定制的 values 资源
             "values/strings.xml"
             "values/arrays.xml"
             "values/styles.xml"
@@ -109,9 +110,11 @@ jobs:
             "values/colors.xml"
             "values/attrs.xml"
             "values/dimens.xml"
-            "values-zh/strings.xml"
-            "values-zh/arrays.xml"
+            "values-zh/"
             "values-night/"
+            # hostei33 定制的菜单（含触摸板手势等独家菜单项）
+            "menu/"
+            # Pulse 定制的布局
             "layout/download_progress_dialog.xml"
           )
 
@@ -134,10 +137,16 @@ jobs:
           #   app/src/main/java/ 2>&1 | tail -20
 
           echo ""
-          echo "=== 同步官方 res 资源（仅更新，不删除独家文件） ==="
-          rsync -av $RES_EXCLUDE_ARGS \
-            /tmp/upstream-official/app/src/main/res/ \
-            app/src/main/res/ 2>&1 | tail -20
+          echo "=== 同步官方 res 资源（仅同步其他语言翻译，保护所有Pulse定制资源） ==="
+          # 只同步 values-xx 翻译目录（排除 values-zh 中文），其他 res 目录全部保护
+          # 原因：menu/layout/values等被hostei33深度定制，官方覆盖会导致R.id/R.string丢失，编译失败
+          for lang_dir in /tmp/upstream-official/app/src/main/res/values-*/; do
+            lang_name=$(basename "$lang_dir")
+            if [ "$lang_name" != "values-zh" ]; then
+              mkdir -p "app/src/main/res/$lang_name"
+              rsync -av "$lang_dir" "app/src/main/res/" 2>&1 | tail -3
+            fi
+          done
 
           echo ""
           echo "=== 变更统计 ==="
