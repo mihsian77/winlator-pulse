@@ -148,7 +148,7 @@ jobs:
           BRANCH="${{ steps.sync.outputs.sync_branch }}"
           UPSTREAM_MSG=$(cd /tmp/upstream-official && git log --oneline -5)
 
-          # 用 echo 逐行写入，避免 heredoc 缩进问题
+          # 用 echo 逐行写入 PR body
           echo "## 自动同步官方上游 brunodev85/winlator-app" > /tmp/pr-body.md
           echo "" >> /tmp/pr-body.md
           echo "此 PR 由定时工作流自动创建，同步官方 Winlator 最新 Java 源码和 res 资源。" >> /tmp/pr-body.md
@@ -171,12 +171,28 @@ jobs:
           echo "$UPSTREAM_MSG" >> /tmp/pr-body.md
           echo '```' >> /tmp/pr-body.md
 
-          EXIST=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null)
+          BODY_CONTENT=$(cat /tmp/pr-body.md)
+
+          # 检查是否已有 open 的 PR
+          EXIST=$(curl -s -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls?state=open&head=${GITHUB_REPOSITORY_OWNER}:$BRANCH" \
+            | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0]['number'] if d else '')")
+
           if [ -n "$EXIST" ]; then
-            gh pr edit "$EXIST" --title "sync: 同步官方上游（自动生成）" --body-file /tmp/pr-body.md
+            echo "更新已有 PR #$EXIST"
+            curl -s -X PATCH -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"title\":\"sync: 同步官方上游（自动生成）\",\"body\":\"$(echo "$BODY_CONTENT" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')\"}" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/$EXIST"
           else
-            gh pr create --base main --head "$BRANCH" --title "sync: 同步官方上游（自动生成）" --body-file /tmp/pr-body.md
+            echo "创建新 PR"
+            curl -s -X POST -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"title\":\"sync: 同步官方上游（自动生成）\",\"head\":\"$BRANCH\",\"base\":\"main\",\"body\":\"$(echo "$BODY_CONTENT" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')\"}" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls"
           fi
+          echo ""
+          echo "PR 操作完成"
 
       - name: 无更新时提示
         if: steps.check.outputs.up_to_date == 'true'
