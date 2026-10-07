@@ -148,30 +148,28 @@ jobs:
           BRANCH="${{ steps.sync.outputs.sync_branch }}"
           UPSTREAM_MSG=$(cd /tmp/upstream-official && git log --oneline -5)
 
-          # 用临时文件避免 shell 多行字符串转义问题
-          cat > /tmp/pr-body.md << EOF
-          ## 自动同步官方上游 brunodev85/winlator-app
-
-          此 PR 由定时工作流自动创建，同步官方 Winlator 最新 Java 源码和 res 资源。
-
-          ### 同步范围
-          - Java 源码（app/src/main/java/）
-          - 资源文件（app/src/main/res/）
-          - 不同步 native 层（cpp/，Pulse 有共存定制）
-          - 不同步组件包（assets/，Pulse 自选版本）
-
-          ### 保护文件
-          Pulse 原创/共存定制文件已排除：XRandR、后台安装、进度对话框、共存核心、中文资源、构建配置。
-
-          ### 说明
-          - 此 PR 会自动触发 CI 构建验证
-          - 构建绿色后再合并
-
-          ### 官方最近提交
-          \`\`\`
-          $UPSTREAM_MSG
-          \`\`\`
-          EOF
+          # 用 echo 逐行写入，避免 heredoc 缩进问题
+          echo "## 自动同步官方上游 brunodev85/winlator-app" > /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "此 PR 由定时工作流自动创建，同步官方 Winlator 最新 Java 源码和 res 资源。" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### 同步范围" >> /tmp/pr-body.md
+          echo "- Java 源码（app/src/main/java/）" >> /tmp/pr-body.md
+          echo "- 资源文件（app/src/main/res/）" >> /tmp/pr-body.md
+          echo "- 不同步 native 层（cpp/，Pulse 有共存定制）" >> /tmp/pr-body.md
+          echo "- 不同步组件包（assets/，Pulse 自选版本）" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### 保护文件" >> /tmp/pr-body.md
+          echo "Pulse 原创/共存定制文件已排除：XRandR、后台安装、进度对话框、共存核心、中文资源、构建配置。" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### 说明" >> /tmp/pr-body.md
+          echo "- 此 PR 会自动触发 CI 构建验证" >> /tmp/pr-body.md
+          echo "- 构建绿色后再合并" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### 官方最近提交" >> /tmp/pr-body.md
+          echo '```' >> /tmp/pr-body.md
+          echo "$UPSTREAM_MSG" >> /tmp/pr-body.md
+          echo '```' >> /tmp/pr-body.md
 
           EXIST=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null)
           if [ -n "$EXIST" ]; then
