@@ -146,8 +146,11 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           BRANCH="${{ steps.sync.outputs.sync_branch }}"
-          UPSTREAM_MSG=$(cd /tmp/upstream-official && git log --oneline -5 | sed 's/^/  /')
-          BODY="## 自动同步官方上游 brunodev85/winlator-app
+          UPSTREAM_MSG=$(cd /tmp/upstream-official && git log --oneline -5)
+
+          # 用临时文件避免 shell 多行字符串转义问题
+          cat > /tmp/pr-body.md << EOF
+          ## 自动同步官方上游 brunodev85/winlator-app
 
           此 PR 由定时工作流自动创建，同步官方 Winlator 最新 Java 源码和 res 资源。
 
@@ -168,12 +171,13 @@ jobs:
           \`\`\`
           $UPSTREAM_MSG
           \`\`\`
-          "
+          EOF
+
           EXIST=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null)
           if [ -n "$EXIST" ]; then
-            gh pr edit "$EXIST" --title "sync: 同步官方上游（自动生成）" --body "$BODY"
+            gh pr edit "$EXIST" --title "sync: 同步官方上游（自动生成）" --body-file /tmp/pr-body.md
           else
-            gh pr create --base main --head "$BRANCH" --title "sync: 同步官方上游（自动生成）" --body "$BODY"
+            gh pr create --base main --head "$BRANCH" --title "sync: 同步官方上游（自动生成）" --body-file /tmp/pr-body.md
           fi
 
       - name: 无更新时提示
