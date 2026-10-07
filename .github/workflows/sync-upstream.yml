@@ -125,10 +125,13 @@ jobs:
             RES_EXCLUDE_ARGS="$RES_EXCLUDE_ARGS --exclude=$f"
           done
 
-          echo "=== 同步官方 Java 源码（仅更新，不删除独家文件） ==="
-          rsync -av $JAVA_EXCLUDE_ARGS \
-            /tmp/upstream-official/app/src/main/java/ \
-            app/src/main/java/ 2>&1 | tail -20
+          echo "=== [暂禁用] Java 源码同步 ==="
+          echo "原因：hostei33 版本与官方原版差异过大（触摸板/输入控制/容器API完全不同）"
+          echo "      直接 rsync 会导致 50+ 文件 API 不兼容，编译失败。"
+          echo "      待逐步重构脱离 hostei33 后再启用。"
+          # rsync -av $JAVA_EXCLUDE_ARGS \
+          #   /tmp/upstream-official/app/src/main/java/ \
+          #   app/src/main/java/ 2>&1 | tail -20
 
           echo ""
           echo "=== 同步官方 res 资源（仅更新，不删除独家文件） ==="
