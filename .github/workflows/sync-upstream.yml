@@ -104,8 +104,14 @@ jobs:
           RES_EXCLUDES=(
             "values/strings.xml"
             "values/arrays.xml"
+            "values/styles.xml"
+            "values/themes.xml"
+            "values/colors.xml"
+            "values/attrs.xml"
+            "values/dimens.xml"
             "values-zh/strings.xml"
             "values-zh/arrays.xml"
+            "values-night/"
             "layout/download_progress_dialog.xml"
           )
 
