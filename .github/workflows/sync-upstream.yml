@@ -143,12 +143,46 @@ jobs:
       - name: 创建/更新 PR 到 main
         if: steps.check.outputs.up_to_date == 'false' && steps.sync.outputs.has_changes == 'true'
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          SYNC_BRANCH: ${{ steps.sync.outputs.sync_branch }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          BRANCH="${{ steps.sync.outputs.sync_branch }}"
           UPSTREAM_MSG=$(cd /tmp/upstream-official && git log --oneline -5)
-          export UPSTREAM_MSG
-          python3 .github/scripts/create_sync_pr.py
+
+          # 写 PR body 到临时文件
+          echo "## 自动同步官方上游 brunodev85/winlator-app" > /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "此 PR 由定时工作流自动创建，同步官方 Winlator 最新 Java 源码和 res 资源。" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### 同步范围" >> /tmp/pr-body.md
+          echo "- Java 源码（app/src/main/java/）" >> /tmp/pr-body.md
+          echo "- 资源文件（app/src/main/res/）" >> /tmp/pr-body.md
+          echo "- 不同步 native 层（cpp/，Pulse 有共存定制）" >> /tmp/pr-body.md
+          echo "- 不同步组件包（assets/，Pulse 自选版本）" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### 保护文件" >> /tmp/pr-body.md
+          echo "Pulse 原创/共存定制文件已排除：XRandR、后台安装、进度对话框、共存核心、中文资源、构建配置。" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### 说明" >> /tmp/pr-body.md
+          echo "- 此 PR 会自动触发 CI 构建验证" >> /tmp/pr-body.md
+          echo "- 构建绿色后再合并" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### 官方最近提交" >> /tmp/pr-body.md
+          echo '```' >> /tmp/pr-body.md
+          echo "$UPSTREAM_MSG" >> /tmp/pr-body.md
+          echo '```' >> /tmp/pr-body.md
+
+          echo "检查是否已有 open PR..."
+          EXIST=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>&1)
+          echo "查询结果: $EXIST"
+
+          if echo "$EXIST" | grep -qE '^[0-9]+$'; then
+            echo "更新已有 PR #$EXIST"
+            gh pr edit "$EXIST" --title "sync: 同步官方上游（自动生成）" --body-file /tmp/pr-body.md 2>&1
+          else
+            echo "创建新 PR"
+            gh pr create --base main --head "$BRANCH" --title "sync: 同步官方上游（自动生成）" --body-file /tmp/pr-body.md 2>&1
+          fi
+          echo "PR 操作完成"
 
       - name: 无更新时提示
         if: steps.check.outputs.up_to_date == 'true'
