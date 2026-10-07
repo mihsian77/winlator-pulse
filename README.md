@@ -3,16 +3,16 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/winlator-123/winlator-pulse/releases">
-    <img src="https://img.shields.io/github/downloads/winlator-123/winlator-pulse/total" alt="Downloads" />
+  <a href="https://github.com/mihsian77/winlator-pulse/releases">
+    <img src="https://img.shields.io/github/downloads/mihsian77/winlator-pulse/total" alt="Downloads" />
   </a>
-  <a href="https://github.com/winlator-123/winlator-pulse/releases">
-    <img src="https://img.shields.io/github/v/release/winlator-123/winlator-pulse" alt="Release" />
+  <a href="https://github.com/mihsian77/winlator-pulse/releases">
+    <img src="https://img.shields.io/github/v/release/mihsian77/winlator-pulse" alt="Release" />
   </a>
-  <a href="https://github.com/winlator-123/winlator-pulse/stargazers">
-    <img src="https://img.shields.io/github/stars/winlator-123/winlator-pulse" alt="Stars" />
+  <a href="https://github.com/mihsian77/winlator-pulse/stargazers">
+    <img src="https://img.shields.io/github/stars/mihsian77/winlator-pulse" alt="Stars" />
   </a>
-  <img src="https://img.shields.io/github/license/winlator-123/winlator-pulse" alt="License" />
+  <img src="https://img.shields.io/github/license/mihsian77/winlator-pulse" alt="License" />
 </p>
 
 # Winlator Pulse
@@ -21,7 +21,7 @@
 
 ## 下载
 
-[Releases](https://github.com/winlator-123/winlator-pulse/releases) 提供两个变体，功能一致仅包名不同：
+[Releases](https://github.com/mihsian77/winlator-pulse/releases) 提供两个变体，功能一致仅包名不同：
 
 | 变体 | 包名 | 说明 |
 |------|------|------|
@@ -85,7 +85,7 @@ Pulse 使用独立的语义化版本号，不跟随上游的 11.2 体系：
 ## 构建
 
 ```bash
-git clone https://github.com/winlator-123/winlator-pulse.git
+git clone https://github.com/mihsian77/winlator-pulse.git
 cd winlator-pulse/app
 
 # 共存版（默认包名 com.winlator.pulse）
