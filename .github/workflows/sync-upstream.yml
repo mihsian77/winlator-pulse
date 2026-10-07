@@ -67,12 +67,16 @@ jobs:
 
           git checkout -B "$BRANCH" origin/main
 
-          # Pulse 定制文件保护名单（rsync 排除列表）
+          # Pulse 定制文件/目录保护名单（rsync 排除列表）
           EXCLUDE_FILES=(
             "README.md"
             "gradle.properties"
             "app/build.gradle"
             "app/src/main/AndroidManifest.xml"
+            # hostei33 独家功能目录（整目录保护）
+            "com/catfixture/"
+            "com/ewt45/"
+            # Pulse 原创/共存核心文件
             "app/src/main/java/com/winlator/MainApplication.java"
             "app/src/main/java/com/winlator/core/AppUtils.java"
             "app/src/main/java/com/winlator/core/PatchUtils.java"
@@ -94,10 +98,20 @@ jobs:
             "app/src/main/java/com/winlator/ContainerDetailFragment.java"
             "app/src/main/java/com/winlator/renderer/GLRenderer.java"
             "app/src/main/java/com/winlator/XServerView.java"
+            # hostei33 独家功能文件
+            "app/src/main/java/com/winlator/ExternalLaunchActivity.java"
+            "app/src/main/java/com/winlator/IconPackDetailsActivity.java"
+            "app/src/main/java/com/winlator/IconPackManagerActivity.java"
+            "app/src/main/java/com/winlator/ImageFilePickerActivity.java"
+            "app/src/main/java/com/winlator/SavesFragment.java"
+            "app/src/main/java/com/winlator/ShortcutLauncherActivity.java"
+            "app/src/main/java/com/winlator/StoresFragment.java"
+            # 中文资源
             "app/src/main/res/values-zh/strings.xml"
             "app/src/main/res/values-zh/arrays.xml"
             "app/src/main/res/values/arrays.xml"
             "app/src/main/res/values/strings.xml"
+            # 工作流
             ".github/workflows/android-ci.yml"
             ".github/workflows/build-coexist.yml"
             ".github/workflows/sync-upstream.yml"
@@ -108,14 +122,14 @@ jobs:
             EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude=$f"
           done
 
-          echo "=== 同步官方 Java 源码 ==="
-          rsync -av --delete $EXCLUDE_ARGS \
+          echo "=== 同步官方 Java 源码（仅更新，不删除独家文件） ==="
+          rsync -av $EXCLUDE_ARGS \
             /tmp/upstream-official/app/src/main/java/ \
             app/src/main/java/ 2>&1 | tail -20
 
           echo ""
-          echo "=== 同步官方 res 资源 ==="
-          rsync -av --delete $EXCLUDE_ARGS \
+          echo "=== 同步官方 res 资源（仅更新，不删除独家文件） ==="
+          rsync -av $EXCLUDE_ARGS \
             /tmp/upstream-official/app/src/main/res/ \
             app/src/main/res/ 2>&1 | tail -20
 
