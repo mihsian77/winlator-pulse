@@ -130,10 +130,7 @@ jobs:
             echo "has_changes=false" >> $GITHUB_OUTPUT
             echo "无实际变更，不开 PR。"
           else
-            git commit -m "sync: 同步官方上游代码
-
-自动同步 brunodev85/winlator-app 最新 Java 源码和 res 资源。
-Pulse 原创/共存定制文件已排除，native 层和组件包不同步。" 2>&1 | tail -3
+            git commit -m "sync: 同步官方上游代码（自动同步 Java 源码和 res 资源，Pulse 定制文件已排除）" 2>&1 | tail -3
             echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
 
