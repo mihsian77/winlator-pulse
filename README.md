@@ -112,4 +112,4 @@ cd winlator-pulse/app
 
 ## License
 
-GPL-3.0
+LGPL-2.1
