@@ -9,6 +9,8 @@ import com.winlator.xserver.XServer;
 import com.winlator.xserver.errors.BadImplementation;
 import com.winlator.xserver.errors.XRequestError;
 
+import android.view.Display;
+
 import java.io.IOException;
 
 /**
@@ -58,7 +60,14 @@ public class XRandRExtension extends Extension {
     private int getRefreshRate() {
         ScreenInfo screenInfo = xServer.screenInfo;
         if (screenInfo.refreshRate > 0) return screenInfo.refreshRate;
-        // 自动模式：返回 60（安全默认值，大部分游戏能正确处理）
+        // 自动模式：读取设备屏幕真实刷新率（Android Display API，兼容 API 26+）
+        try {
+            Display display = xServer.activity.getWindowManager().getDefaultDisplay();
+            if (display != null && display.getRefreshRate() > 0) {
+                return Math.round(display.getRefreshRate());
+            }
+        } catch (Exception ignored) {}
+        // 兜底：安全默认值，大部分游戏能正确处理
         return 60;
     }
 
