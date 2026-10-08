@@ -26,6 +26,7 @@
 # === Steam 商店依赖保护规则（移植自 Frost） ===
 # Steam 栈（JavaSteam/Ktor/protobuf/okhttp/okio/协程/序列化/ZXing）依赖反射和 ServiceLoader
 -keep class com.winlator.store.** { *; }
+-keep class com.winlator.hud.** { *; }
 -keep class in.dragonbra.** { *; }
 -keep class io.ktor.** { *; }
 -keep class kotlinx.** { *; }
