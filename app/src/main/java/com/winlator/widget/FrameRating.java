@@ -8,9 +8,11 @@ import android.widget.FrameLayout;
 import com.winlator.hud.WinlatorHUD;
 
 /**
- * FrameRating — WinlatorHUD v3.8.0 兼容包装器。
- * 保留上游全部接口，XServerDisplayActivity 无需修改。
- * v3.8.0 用 init() 显示、release() 隐藏，配置自动持久化到 SharedPreferences。
+ * FrameRating — WinlatorHUD v3.9.0 兼容包装器。
+ *
+ * 线程安全：v3.9.0 的 init()/release() 会直接操作 decorView（addView/removeView），
+ * 而 reset()/setVisibility() 可能在渲染线程（onUpdateWindowContent）被调用，
+ * 因此所有 init/release 必须 post 到 UI 线程，否则 SurfaceView 黑屏。
  */
 public class FrameRating extends FrameLayout {
 
@@ -38,16 +40,21 @@ public class FrameRating extends FrameLayout {
 
     public void setMode(Mode mode) {
         this.mode = mode;
-        WinlatorHUD.setLanguage(WinlatorHUD.LANG_ZH);
+        post(() -> applyMode());
+    }
+
+    private void applyMode() {
         switch (mode) {
             case DISABLED:
                 WinlatorHUD.release();
                 break;
             case SIMPLE:
+                WinlatorHUD.setLanguage(WinlatorHUD.LANG_ZH);
                 WinlatorHUD.init(activity, WinlatorHUD.SHOW_COMPACT,
                         WinlatorHUD.DENSITY_COMPACT, WinlatorHUD.ORIENT_HORIZONTAL);
                 break;
             case FULL:
+                WinlatorHUD.setLanguage(WinlatorHUD.LANG_ZH);
                 WinlatorHUD.init(activity, WinlatorHUD.SHOW_DETAILED,
                         WinlatorHUD.DENSITY_DETAILED, WinlatorHUD.ORIENT_HORIZONTAL);
                 break;
@@ -64,12 +71,16 @@ public class FrameRating extends FrameLayout {
     }
 
     public void reset() {
-        WinlatorHUD.release();
-        if (mode != Mode.DISABLED) {
-            int showMask = (mode == Mode.SIMPLE) ? WinlatorHUD.SHOW_COMPACT : WinlatorHUD.SHOW_DETAILED;
-            int density = (mode == Mode.SIMPLE) ? WinlatorHUD.DENSITY_COMPACT : WinlatorHUD.DENSITY_DETAILED;
-            WinlatorHUD.init(activity, showMask, density, WinlatorHUD.ORIENT_HORIZONTAL);
-        }
+        // 渲染线程调用，必须 post 到 UI 线程
+        post(() -> {
+            WinlatorHUD.release();
+            if (mode != Mode.DISABLED) {
+                int showMask = (mode == Mode.SIMPLE) ? WinlatorHUD.SHOW_COMPACT : WinlatorHUD.SHOW_DETAILED;
+                int density = (mode == Mode.SIMPLE) ? WinlatorHUD.DENSITY_COMPACT : WinlatorHUD.DENSITY_DETAILED;
+                WinlatorHUD.setLanguage(WinlatorHUD.LANG_ZH);
+                WinlatorHUD.init(activity, showMask, density, WinlatorHUD.ORIENT_HORIZONTAL);
+            }
+        });
     }
 
     public void update() {
@@ -79,14 +90,15 @@ public class FrameRating extends FrameLayout {
     @Override
     public void setVisibility(int visibility) {
         super.setVisibility(visibility);
-        if (visibility == VISIBLE) {
-            if (mode != Mode.DISABLED) {
+        post(() -> {
+            if (visibility == VISIBLE && mode != Mode.DISABLED) {
                 int showMask = (mode == Mode.SIMPLE) ? WinlatorHUD.SHOW_COMPACT : WinlatorHUD.SHOW_DETAILED;
                 int density = (mode == Mode.SIMPLE) ? WinlatorHUD.DENSITY_COMPACT : WinlatorHUD.DENSITY_DETAILED;
+                WinlatorHUD.setLanguage(WinlatorHUD.LANG_ZH);
                 WinlatorHUD.init(activity, showMask, density, WinlatorHUD.ORIENT_HORIZONTAL);
+            } else {
+                WinlatorHUD.release();
             }
-        } else {
-            WinlatorHUD.release();
-        }
+        });
     }
 }
