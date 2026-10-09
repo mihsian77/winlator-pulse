@@ -21,26 +21,28 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
-import android.widget.ScrollView;
-import android.widget.Spinner;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import com.google.android.material.progressindicator.CircularProgressIndicator;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;      // 使用 AppCompat 版本支持深色模式
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
+import com.google.android.material.progressindicator.CircularProgressIndicator;
+
+import com.winlator.R;
 import com.winlator.core.TarCompressorUtils;
 import com.winlator.services.InstallService;
 
@@ -51,10 +53,20 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
+/**
+ * 组件管理（附加内容）页面
+ *
+ * 界面：横向 Chip 分类 + 卡片列表 + 空态提示 + 底部安装按钮
+ * 操作：列表项菜单支持查看信息 / 删除
+ * 安装：本地 .whp 安装走 InstallService 后台安装 + 应用内圆形进度对话框（阶段+百分比）
+ * 下载：在线资源下载走 DownloadProgressDialog（带速度/已下载/剩余时间）
+ */
 public class ContentsFragment extends Fragment {
-    private static final String[] FILE_TYPES = {"dxvk", "box64", "turnip", "virgl", "vkd3d", "wine", "proton"};
+    private static final String[] FILE_TYPES = {"wine", "proton", "dxvk", "box64", "turnip", "virgl", "vkd3d"};
     private static final String WHP_EXTENSION = ".whp";
     private static final String TZSD_EXTENSION = ".tzst";
     private static final int CORNER_RADIUS_DP = 12;
@@ -68,8 +80,11 @@ public class ContentsFragment extends Fragment {
     private String currentStoragePath = "installed_components";
     private String currentInstallPath = "";
 
-    private LinearLayout fileListContainer;
-    private Spinner categorySpinner;
+    private RecyclerView recyclerView;
+    private View emptyState;
+    private TextView emptyIconView;
+    private TextView emptyTextView;
+    private ChipGroup chipGroup;
     private String currentCategory = FILE_TYPES[0];
     private String installCategory;
     private Uri selectedFileUri;
@@ -80,6 +95,8 @@ public class ContentsFragment extends Fragment {
     private CircularProgressIndicator installCircularProgress;
     private TextView installStageView;
     private TextView installPercentView;
+
+    private final List<String> installedItems = new ArrayList<>();
 
     private final ActivityResultLauncher<Intent> filePickerLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -103,7 +120,6 @@ public class ContentsFragment extends Fragment {
         if (activity != null && activity.getSupportActionBar() != null) {
             activity.getSupportActionBar().setTitle("组件管理");
         }
-        // 注册安装完成广播接收器
         registerInstallReceiver();
     }
 
@@ -126,17 +142,10 @@ public class ContentsFragment extends Fragment {
                 boolean success = intent.getBooleanExtra("success", false);
                 String error = intent.getStringExtra("error");
                 if (success) {
-                    showToast("✔ 安装完成: " + fileName);
-                    // 自动切换到对应分类并刷新列表
-                    String detected = detectCategory(fileName);
-                    if (detected != null) {
-                        currentCategory = detected;
-                        int pos = Arrays.asList(FILE_TYPES).indexOf(currentCategory);
-                        if (pos >= 0 && categorySpinner != null) categorySpinner.setSelection(pos);
-                    }
+                    showToast("安装完成: " + fileName);
                     refreshFileList();
                 } else if (error != null && !error.equals("已取消")) {
-                    showToast("✘ 安装失败: " + error);
+                    showToast("安装失败: " + error);
                 }
             }
         };
@@ -198,20 +207,11 @@ public class ContentsFragment extends Fragment {
                 } catch (Exception e) {
                     Log.e("Symlink", "创建符号链接失败", e);
                 }
-            } else {
-                Log.w("Symlink", "符号链接需要 Android 8+，跳过创建");
             }
         }
-
-        File wineDir = new File(baseFilesPath, "rootfs/opt/installed-wine");
-        if (!wineDir.exists() && wineDir.mkdirs()) {
-            try {
-                new ProcessBuilder("chmod", "-R", "771", wineDir.getAbsolutePath())
-                        .start()
-                        .waitFor();
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
-            }
+        for (String type : FILE_TYPES) {
+            File dir = new File(baseFilesPath, "installed_components" + File.separator + type);
+            if (!dir.exists()) dir.mkdirs();
         }
     }
 
@@ -219,67 +219,53 @@ public class ContentsFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        LinearLayout root = new LinearLayout(requireContext());
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#FAFAFA"), Color.parseColor("#121212")));
-        int padding = dpToPx(16);
-        root.setPadding(padding, padding, padding, padding);
+        View root = inflater.inflate(R.layout.contents_fragment, container, false);
 
-        TextView title = new TextView(requireContext());
-        title.setText("选择附加类型");
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setPadding(0, 0, 0, dpToPx(12));
-        root.addView(title);
+        chipGroup = root.findViewById(R.id.ChipGroupCategories);
+        buildCategoryChips();
 
-        categorySpinner = new Spinner(requireContext());
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_dropdown_item, FILE_TYPES);
-        categorySpinner.setAdapter(adapter);
-        int cardBgColor = getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#FFFFFF"), Color.parseColor("#121212"));
-        categorySpinner.setBackground(createRoundedBackground(cardBgColor, CORNER_RADIUS_DP));
-        categorySpinner.setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12));
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            categorySpinner.setElevation(dpToPx(ELEVATION_DP));
-        }
-        categorySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                currentCategory = FILE_TYPES[position];
-                refreshFileList();
-            }
+        recyclerView = root.findViewById(R.id.RecyclerView);
+        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
-        root.addView(categorySpinner, createLayoutParams(16));
+        emptyState = root.findViewById(R.id.LLEmptyState);
+        emptyIconView = root.findViewById(R.id.TVEmptyIcon);
+        emptyTextView = root.findViewById(R.id.TVEmptyText);
 
-        // 滚动列表
-        ScrollView scroll = new ScrollView(requireContext());
-        fileListContainer = new LinearLayout(requireContext());
-        fileListContainer.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(fileListContainer);
-        root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
-
-        // 安装按钮
-        Button installBtn = new Button(requireContext());
+        MaterialButton installBtn = root.findViewById(R.id.BTInstallContent);
         installBtn.setText("选择安装文件");
-        installBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        installBtn.setTextColor(Color.WHITE);
-        installBtn.setTypeface(Typeface.DEFAULT_BOLD);
-        installBtn.setAllCaps(false);
-        int primaryColor = getColorFromAttr(android.R.attr.colorPrimary, Color.parseColor("#2196F3"), Color.parseColor("#2196F3"));
-        installBtn.setBackground(createRoundedBackground(primaryColor, CORNER_RADIUS_DP));
-        installBtn.setPadding(0, dpToPx(14), 0, dpToPx(14));
         installBtn.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
             intent.setType("*/*");
             filePickerLauncher.launch(intent);
         });
-        root.addView(installBtn, createLayoutParams(24));
 
         refreshFileList();
         return root;
+    }
+
+    /**
+     * 构建分类 Chip（横向滚动单选）
+     */
+    private void buildCategoryChips() {
+        if (chipGroup == null) return;
+        chipGroup.removeAllViews();
+        for (String type : FILE_TYPES) {
+            Chip chip = new Chip(requireContext());
+            chip.setText(getCategoryDisplayName(type));
+            chip.setCheckable(true);
+            chip.setChipBackgroundColorResource(android.R.color.transparent);
+            chip.setCheckedIconVisible(false);
+            chip.setTextSize(13);
+            chip.setChipStrokeWidth(dpToPx(1));
+            chip.setOnClickListener(v -> {
+                currentCategory = type;
+                refreshFileList();
+            });
+            chipGroup.addView(chip);
+            if (type.equals(currentCategory)) {
+                chip.setChecked(true);
+            }
+        }
     }
 
     private int getColorFromAttr(int attr, int lightDefault, int darkDefault) {
@@ -326,14 +312,15 @@ public class ContentsFragment extends Fragment {
         return null;
     }
 
+    /**
+     * 安装确认对话框
+     */
     private void showInstallDialog(String fileName) {
         new AlertDialog.Builder(requireContext())
                 .setTitle("安全提示")
                 .setMessage("即将安装：" + fileName + "\n请确认文件来源可靠")
                 .setPositiveButton("确认安装", (d, w) -> {
-                    // 显示应用内圆形进度对话框
                     showInstallProgressDialog(fileName);
-                    // 启动后台安装服务
                     InstallService.startInstall(
                             requireContext(),
                             selectedFileUri,
@@ -346,6 +333,9 @@ public class ContentsFragment extends Fragment {
                 .show();
     }
 
+    /**
+     * 应用内安装进度对话框（圆形进度条 + 阶段 + 百分比）
+     */
     private void showInstallProgressDialog(String fileName) {
         if (installProgressDialog != null && installProgressDialog.isShowing()) return;
 
@@ -354,7 +344,6 @@ public class ContentsFragment extends Fragment {
         layout.setPadding(dpToPx(28), dpToPx(24), dpToPx(28), dpToPx(24));
         layout.setGravity(Gravity.CENTER);
 
-        // 文件名
         TextView titleView = new TextView(requireContext());
         titleView.setText(fileName);
         titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
@@ -365,7 +354,6 @@ public class ContentsFragment extends Fragment {
         titleView.setPadding(0, 0, 0, dpToPx(16));
         layout.addView(titleView);
 
-        // 圆形进度条
         installCircularProgress = new CircularProgressIndicator(requireContext());
         installCircularProgress.setIndeterminate(false);
         installCircularProgress.setProgress(0);
@@ -374,15 +362,13 @@ public class ContentsFragment extends Fragment {
         installCircularProgress.setLayoutParams(cpLp);
         layout.addView(installCircularProgress);
 
-        // 阶段文字
         installStageView = new TextView(requireContext());
-        installStageView.setText("正在安装");
+        installStageView.setText("正在准备");
         installStageView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         installStageView.setGravity(Gravity.CENTER);
         installStageView.setPadding(0, dpToPx(12), 0, 0);
         layout.addView(installStageView);
 
-        // 百分比
         installPercentView = new TextView(requireContext());
         installPercentView.setText("0%");
         installPercentView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
@@ -426,6 +412,9 @@ public class ContentsFragment extends Fragment {
         }
     }
 
+    /**
+     * 执行安装（旧接口保留，实际走 InstallService）
+     */
     private void performInstall(String fileName) throws Exception {
         boolean isWine = isWineOrProton(installCategory);
         String storagePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
@@ -450,19 +439,23 @@ public class ContentsFragment extends Fragment {
                 try (OutputStream output = new FileOutputStream(outFile)) {
                     byte[] buffer = new byte[8192];
                     int len;
-                    while ((len = input.read(buffer)) != -1) output.write(buffer, 0, len);
+                    while ((len = input.read(buffer)) != -1) {
+                        output.write(buffer, 0, len);
+                    }
                 }
             }
         }
     }
 
+    /**
+     * 检测压缩类型
+     */
     private TarCompressorUtils.Type detectCompressionType(Uri uri) throws IOException {
         byte[] magic = new byte[6];
         try (InputStream is = requireContext().getContentResolver().openInputStream(uri)) {
             if (is == null || is.read(magic) < 4) return null;
             if ((magic[0] & 0xFF) == 0xFD && (magic[1] & 0xFF) == 0x37 &&
-                (magic[2] & 0xFF) == 0x7A && (magic[3] & 0xFF) == 0x58 &&
-                (magic[4] & 0xFF) == 0x5A && (magic[5] & 0xFF) == 0x00) {
+                (magic[2] & 0xFF) == 0x7A && (magic[3] & 0xFF) == 0x58) {
                 return TarCompressorUtils.Type.XZ;
             }
             if ((magic[0] & 0xFF) == 0x28 && (magic[1] & 0xFF) == 0xB5 &&
@@ -493,12 +486,9 @@ public class ContentsFragment extends Fragment {
                             if (newVersion != null) {
                                 File newPattern = new File(folder.getParent(), "container-pattern-" + newVersion + ".tzst");
                                 oldPattern.renameTo(newPattern);
-                                Log.d("WineFolder", "重命名 pattern: " + oldPattern.getName() + " -> " + newPattern.getName());
                             }
                         }
                     }
-                } else {
-                    Log.e("WineFolder", "重命名失败: " + oldName);
                 }
             }
         }
@@ -512,148 +502,134 @@ public class ContentsFragment extends Fragment {
         return version;
     }
 
+    /**
+     * 刷新列表
+     */
     private void refreshFileList() {
         boolean isWine = isWineOrProton(currentCategory);
         currentStoragePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
         currentInstallPath = isWine ? "" : currentCategory;
 
-        fileListContainer.removeAllViews();
         File dir = new File(baseFilesPath, currentStoragePath + File.separator + currentInstallPath);
-        if (!dir.exists() || !dir.isDirectory()) {
-            showEmptyState();
-            return;
-        }
-
-        if (isWine) {
+        if (isWine && dir.exists() && dir.isDirectory()) {
             sanitizeWineFolderNames(dir);
         }
 
-        File[] files = dir.listFiles();
-        if (files == null || files.length == 0) {
-            showEmptyState();
+        installedItems.clear();
+        if (dir.exists() && dir.isDirectory()) {
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (isWine) {
+                        if (f.isDirectory()) installedItems.add(f.getName());
+                    } else {
+                        String name = f.isFile() ? f.getName().replace(TZSD_EXTENSION, "") : f.getName();
+                        if (name != null && !name.isEmpty()) installedItems.add(name);
+                    }
+                }
+            }
+        }
+
+        if (installedItems.isEmpty()) {
+            emptyState.setVisibility(View.VISIBLE);
+            recyclerView.setVisibility(View.GONE);
+            emptyIconView.setText(getCategoryIcon(currentCategory));
+            emptyIconView.setBackground(createRoundedBackground(getCategoryColor(currentCategory), 14));
+            emptyTextView.setText("当前分类下没有已安装组件\n点击下方按钮选择 .whp 文件安装");
+            emptyTextView.setTextColor(getColorFromAttr(android.R.attr.textColorSecondary, Color.parseColor("#757575"), Color.parseColor("#B0B0B0")));
             return;
         }
 
-        boolean hasEntries = false;
-        for (File f : files) {
-            if (isWine) {
-                if (f.isDirectory()) {
-                    addFileEntry(f.getName());
-                    hasEntries = true;
-                }
+        emptyState.setVisibility(View.GONE);
+        recyclerView.setVisibility(View.VISIBLE);
+        recyclerView.setAdapter(new ContentItemAdapter(installedItems));
+    }
+
+    /**
+     * 组件列表适配器（卡片式）
+     */
+    private class ContentItemAdapter extends RecyclerView.Adapter<ContentItemAdapter.ViewHolder> {
+        private final List<String> items;
+
+        ContentItemAdapter(List<String> items) {
+            this.items = items;
+        }
+
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.contents_item, parent, false);
+            return new ViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            final String name = items.get(position);
+            String displayName = isWineOrProton(currentCategory) ? name : name;
+            holder.nameView.setText(displayName);
+
+            // 描述行：类型 + 版本 + 大小
+            String version = extractVersionFromName(name);
+            String size = getFileSizeString(name);
+            String desc;
+            if (version != null) {
+                desc = getCategoryDisplayName(currentCategory) + " · " + version +
+                        (size != null ? " · " + size : "");
             } else {
-                String name = f.isFile() ? f.getName().replace(TZSD_EXTENSION, "") : f.getName();
-                addFileEntry(name);
-                hasEntries = true;
+                desc = getCategoryDisplayName(currentCategory) + (size != null ? " · " + size : "");
+            }
+            holder.versionView.setText(desc);
+
+            holder.iconView.setText(getCategoryIcon(currentCategory));
+            holder.iconView.setBackground(createRoundedBackground(getCategoryColor(currentCategory), 12));
+
+            holder.statusView.setText("已安装");
+            holder.statusView.setTextColor(Color.parseColor("#4CAF50"));
+            holder.statusView.setBackground(createRoundedBackground(Color.parseColor("#E8F5E9"), 8));
+
+            holder.menuBtn.setOnClickListener(v -> showItemMenu(holder.menuBtn, name));
+        }
+
+        @Override
+        public int getItemCount() {
+            return items.size();
+        }
+
+        class ViewHolder extends RecyclerView.ViewHolder {
+            final TextView iconView;
+            final TextView nameView;
+            final TextView versionView;
+            final TextView statusView;
+            final ImageButton menuBtn;
+
+            ViewHolder(@NonNull View view) {
+                super(view);
+                iconView = view.findViewById(R.id.TVIcon);
+                nameView = view.findViewById(R.id.TVName);
+                versionView = view.findViewById(R.id.TVVersion);
+                statusView = view.findViewById(R.id.TVStatus);
+                menuBtn = view.findViewById(R.id.BTMenu);
             }
         }
-        if (!hasEntries) showEmptyState();
     }
 
-    private void showEmptyState() {
-        TextView empty = new TextView(requireContext());
-        empty.setText("当前无已安装项目");
-        empty.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        empty.setGravity(Gravity.CENTER);
-        empty.setPadding(0, dpToPx(32), 0, 0);
-        fileListContainer.addView(empty);
-    }
-
-    private void addFileEntry(String name) {
-        LinearLayout item = new LinearLayout(requireContext());
-        item.setOrientation(LinearLayout.HORIZONTAL);
-        int cardBgColor = getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#FFFFFF"), Color.parseColor("#121212"));
-        item.setBackground(createRoundedBackground(cardBgColor, CORNER_RADIUS_DP));
-        item.setPadding(dpToPx(16), dpToPx(14), dpToPx(16), dpToPx(14));
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            item.setElevation(dpToPx(ELEVATION_DP / 2));
-        }
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(0, 0, 0, dpToPx(10));
-        item.setLayoutParams(lp);
-
-        // 组件图标（按类型显示首字母+主题色背景）
-        TextView iconView = new TextView(requireContext());
-        iconView.setText(getCategoryIcon(currentCategory));
-        iconView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
-        iconView.setTextColor(Color.WHITE);
-        iconView.setTypeface(Typeface.DEFAULT_BOLD);
-        iconView.setGravity(Gravity.CENTER);
-        int iconSize = dpToPx(44);
-        iconView.setLayoutParams(new LinearLayout.LayoutParams(iconSize, iconSize));
-        iconView.setBackground(createRoundedBackground(getCategoryColor(currentCategory), 12));
-        item.addView(iconView);
-
-        // 中间信息区：名称 + 描述/大小
-        LinearLayout infoLayout = new LinearLayout(requireContext());
-        infoLayout.setOrientation(LinearLayout.VERTICAL);
-        infoLayout.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        infoLayout.setPadding(dpToPx(14), 0, dpToPx(8), 0);
-
-        TextView tv = new TextView(requireContext());
-        tv.setText(name);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        tv.setTextColor(getColorFromAttr(android.R.attr.textColorPrimary, Color.parseColor("#212121"), Color.parseColor("#FFFFFF")));
-        tv.setTypeface(Typeface.DEFAULT_BOLD);
-        tv.setMaxLines(1);
-        tv.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        infoLayout.addView(tv);
-
-        // 描述行：类型 + 大小
-        TextView descView = new TextView(requireContext());
-        String fileSize = getFileSizeString(name);
-        String categoryName = getCategoryDisplayName(currentCategory);
-        descView.setText(categoryName + (fileSize != null ? " · " + fileSize : ""));
-        descView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        descView.setTextColor(getColorFromAttr(android.R.attr.textColorSecondary, Color.parseColor("#757575"), Color.parseColor("#B0B0B0")));
-        descView.setMaxLines(1);
-        descView.setPadding(0, dpToPx(2), 0, 0);
-        infoLayout.addView(descView);
-
-        item.addView(infoLayout);
-
-        // 右侧状态标识
-        TextView statusView = new TextView(requireContext());
-        statusView.setText("已安装");
-        statusView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
-        statusView.setTextColor(Color.parseColor("#4CAF50"));
-        statusView.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
-        statusView.setBackground(createRoundedBackground(Color.parseColor("#E8F5E9"), 8));
-        item.addView(statusView);
-
-        // 右侧操作按钮：信息 + 删除
-        LinearLayout btnLayout = new LinearLayout(requireContext());
-        btnLayout.setOrientation(LinearLayout.HORIZONTAL);
-        btnLayout.setGravity(Gravity.CENTER_VERTICAL);
-        btnLayout.setPadding(dpToPx(6), 0, 0, 0);
-
-        Button infoBtn = new Button(requireContext());
-        infoBtn.setText("信息");
-        infoBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        infoBtn.setTextColor(Color.parseColor("#2196F3"));
-        infoBtn.setAllCaps(false);
-        infoBtn.setPadding(dpToPx(10), dpToPx(4), dpToPx(10), dpToPx(4));
-        infoBtn.setBackground(createRoundedBackground(Color.parseColor("#E3F2FD"), 8));
-        infoBtn.setOnClickListener(v -> showInfoDialog(name));
-        btnLayout.addView(infoBtn);
-
-        Button delBtn = new Button(requireContext());
-        delBtn.setText("删除");
-        delBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        delBtn.setTextColor(Color.parseColor("#F44336"));
-        delBtn.setAllCaps(false);
-        delBtn.setPadding(dpToPx(10), dpToPx(4), dpToPx(10), dpToPx(4));
-        delBtn.setBackground(createRoundedBackground(Color.parseColor("#FFEBEE"), 8));
-        LinearLayout.LayoutParams delLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        delLp.setMargins(dpToPx(8), 0, 0, 0);
-        delBtn.setLayoutParams(delLp);
-        delBtn.setOnClickListener(v -> showDeleteDialog(name));
-        btnLayout.addView(delBtn);
-
-        item.addView(btnLayout);
-        fileListContainer.addView(item);
+    /**
+     * 列表项操作菜单：查看信息 / 删除
+     */
+    private void showItemMenu(View anchor, final String name) {
+        PopupMenu menu = new PopupMenu(requireContext(), anchor);
+        menu.getMenu().add(0, 1, 0, "查看信息");
+        menu.getMenu().add(0, 2, 1, "删除");
+        menu.setOnMenuItemClickListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == 1) {
+                showInfoDialog(name);
+            } else if (itemId == 2) {
+                showDeleteDialog(name);
+            }
+            return true;
+        });
+        menu.show();
     }
 
     /**
@@ -699,14 +675,14 @@ public class ContentsFragment extends Fragment {
      */
     private int getCategoryColor(String category) {
         switch (category.toLowerCase()) {
-            case "dxvk": return Color.parseColor("#673AB7"); // 紫色
-            case "box64": return Color.parseColor("#FF9800"); // 橙色
-            case "turnip": return Color.parseColor("#4CAF50"); // 绿色
-            case "virgl": return Color.parseColor("#2196F3"); // 蓝色
-            case "vkd3d": return Color.parseColor("#E91E63"); // 粉色
-            case "wine": return Color.parseColor("#F44336"); // 红色
-            case "proton": return Color.parseColor("#00BCD4"); // 青色
-            default: return Color.parseColor("#607D8B"); // 灰色
+            case "dxvk": return Color.parseColor("#673AB7");
+            case "box64": return Color.parseColor("#FF9800");
+            case "turnip": return Color.parseColor("#4CAF50");
+            case "virgl": return Color.parseColor("#2196F3");
+            case "vkd3d": return Color.parseColor("#E91E63");
+            case "wine": return Color.parseColor("#F44336");
+            case "proton": return Color.parseColor("#00BCD4");
+            default: return Color.parseColor("#607D8B");
         }
     }
 
@@ -805,10 +781,10 @@ public class ContentsFragment extends Fragment {
             success = new File(target.getAbsolutePath() + TZSD_EXTENSION).delete();
         }
         if (success) {
-            showToast("✔ 删除成功");
+            showToast("删除成功");
             refreshFileList();
         } else {
-            showToast("✘ 删除失败");
+            showToast("删除失败");
         }
     }
 
