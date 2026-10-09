@@ -2,6 +2,7 @@ package com.winlator.core;
 
 import android.app.Activity;
 import android.app.Dialog;
+import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -44,6 +45,7 @@ public class DownloadProgressDialog {
         if (window != null) {
             window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
             window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
+            window.setGravity(Gravity.CENTER);
         }
     }
 
@@ -72,6 +74,8 @@ public class DownloadProgressDialog {
         currentSpeed = 0;
 
         setProgress(0);
+        View speedInfo = dialog.findViewById(R.id.LLSpeedInfo);
+        if (speedInfo != null) speedInfo.setVisibility(View.GONE);
         if (onCancelCallback != null) {
             dialog.findViewById(R.id.BTCancel).setOnClickListener((v) -> onCancelCallback.run());
             dialog.findViewById(R.id.LLBottomBar).setVisibility(View.VISIBLE);
@@ -88,6 +92,9 @@ public class DownloadProgressDialog {
         ((CircularProgressIndicator)dialog.findViewById(R.id.CircularProgressIndicator)).setProgress(progress);
         ((LinearProgressIndicator)dialog.findViewById(R.id.LinearProgressBar)).setProgress(progress);
         ((TextView)dialog.findViewById(R.id.TVProgressPercent)).setText(progress + "%");
+        // 纯百分比调用不展示网速/大小/剩余时间
+        View speedInfo = dialog.findViewById(R.id.LLSpeedInfo);
+        if (speedInfo != null) speedInfo.setVisibility(View.GONE);
     }
 
     /**
@@ -119,6 +126,10 @@ public class DownloadProgressDialog {
             lastUpdateTime = now;
             lastDownloadedBytes = downloadedBytes;
         }
+
+        // 带字节数调用才展示网速/大小/剩余时间
+        View speedInfo = dialog.findViewById(R.id.LLSpeedInfo);
+        if (speedInfo != null) speedInfo.setVisibility(View.VISIBLE);
 
         // 更新速度显示
         String speedText;
