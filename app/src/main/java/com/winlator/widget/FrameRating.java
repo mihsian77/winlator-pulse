@@ -38,6 +38,7 @@ public class FrameRating extends FrameLayout {
 
     public void setMode(Mode mode) {
         this.mode = mode;
+        WinlatorHUD.setLanguage(WinlatorHUD.LANG_ZH);
         switch (mode) {
             case DISABLED:
                 WinlatorHUD.release();
