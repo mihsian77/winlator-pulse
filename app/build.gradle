@@ -113,7 +113,7 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation files('libs/WinlatorHUD-3.8.0.aar')
+    implementation files('libs/WinlatorHUD-3.9.0.aar')
     implementation fileTree(dir: 'libs/steam', include: ['*.jar'])
     implementation 'androidx.appcompat:appcompat:1.4.0'
     implementation 'androidx.preference:preference:1.2.1'
