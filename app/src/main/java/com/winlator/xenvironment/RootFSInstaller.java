@@ -62,7 +62,7 @@ public abstract class RootFSInstaller {
                 if (size > 0) {
                     long totalSize = totalSizeRef.addAndGet(size);
                     final int progress = (int)(((float)totalSize / contentLength) * 100);
-                    activity.runOnUiThread(() -> dialog.setProgress(progress, totalSize, contentLength));
+                    activity.runOnUiThread(() -> dialog.setProgress(progress));
                 }
                 return file;
             });
