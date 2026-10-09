@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * 组件安装后台服务
  * 在前台服务中执行组件安装，通知栏实时显示进度，支持取消。
- * 安装过程不阻塞 UI，用户可以切换到其他界面操作。
+ * 同时通过广播实时回传进度，供组件管理页面的圆形进度对话框更新。
  */
 public class InstallService extends Service {
     private static final String TAG = "InstallService";
@@ -41,11 +41,15 @@ public class InstallService extends Service {
 
     public static final String ACTION_START_INSTALL = "com.winlator.action.START_INSTALL";
     public static final String ACTION_CANCEL_INSTALL = "com.winlator.action.CANCEL_INSTALL";
+    public static final String ACTION_INSTALL_PROGRESS = "com.winlator.action.INSTALL_PROGRESS";
+    public static final String ACTION_INSTALL_COMPLETED = "com.winlator.action.INSTALL_COMPLETED";
 
     public static final String EXTRA_FILE_URI = "file_uri";
     public static final String EXTRA_FILE_NAME = "file_name";
     public static final String EXTRA_CATEGORY = "category";
     public static final String EXTRA_BASE_FILES_PATH = "base_files_path";
+    public static final String EXTRA_PROGRESS = "progress";
+    public static final String EXTRA_STAGE = "stage";
 
     private final AtomicBoolean isCancelled = new AtomicBoolean(false);
     private NotificationManager notificationManager;
@@ -70,6 +74,7 @@ public class InstallService extends Service {
         if (ACTION_CANCEL_INSTALL.equals(action)) {
             isCancelled.set(true);
             updateNotification("正在取消...", 0, false);
+            sendProgressBroadcast("正在取消...", 0);
             return START_NOT_STICKY;
         }
 
@@ -85,6 +90,7 @@ public class InstallService extends Service {
             }
 
             startForeground(NOTIFICATION_ID, buildNotification("正在安装: " + fileName, 0));
+            sendProgressBroadcast("正在安装", 5);
             isCancelled.set(false);
 
             // 在后台线程执行安装
@@ -94,6 +100,7 @@ public class InstallService extends Service {
                     if (!isCancelled.get()) {
                         mainHandler.post(() -> {
                             updateNotification("安装完成: " + fileName, 100, true);
+                            sendProgressBroadcast("安装完成", 100);
                             sendCompletionBroadcast(fileName, true, null);
                         });
                     } else {
@@ -128,6 +135,7 @@ public class InstallService extends Service {
         }
 
         updateNotification("正在安装: " + fileName, 10);
+        sendProgressBroadcast("正在安装", 10);
 
         String baseName = fileName.replaceAll("(?i)\\.whp$", "");
         try (InputStream input = getContentResolver().openInputStream(fileUri)) {
@@ -137,10 +145,12 @@ public class InstallService extends Service {
                 TarCompressorUtils.Type type = detectCompressionType(fileUri);
                 if (type == null) throw new Exception("不支持的文件格式");
                 updateNotification("正在解压: " + fileName, 30);
+                sendProgressBroadcast("正在解压", 30);
                 if (!TarCompressorUtils.extract(type, this, fileUri, targetDir, null)) {
                     throw new Exception("解压失败");
                 }
                 updateNotification("正在配置: " + fileName, 80);
+                sendProgressBroadcast("正在配置", 80);
             } else {
                 File outFile = new File(targetDir, baseName + ".tzst");
                 try (OutputStream output = new FileOutputStream(outFile)) {
@@ -154,11 +164,13 @@ public class InstallService extends Service {
                         // 模拟进度（实际无法预知总大小，用阶段进度）
                         int progress = (int) Math.min(90, 10 + (total / (1024 * 1024)) * 5);
                         updateNotification("正在复制: " + fileName, progress);
+                        sendProgressBroadcast("正在复制", progress);
                     }
                 }
             }
         }
         updateNotification("安装完成: " + fileName, 100);
+        sendProgressBroadcast("安装完成", 100);
     }
 
     /**
@@ -251,10 +263,21 @@ public class InstallService extends Service {
     }
 
     /**
+     * 发送实时进度广播（应用内圆形进度对话框更新）
+     */
+    private void sendProgressBroadcast(String stage, int progress) {
+        Intent intent = new Intent(ACTION_INSTALL_PROGRESS);
+        intent.setPackage(getPackageName());
+        intent.putExtra(EXTRA_PROGRESS, progress);
+        intent.putExtra(EXTRA_STAGE, stage);
+        sendBroadcast(intent);
+    }
+
+    /**
      * 发送安装完成广播
      */
     private void sendCompletionBroadcast(String fileName, boolean success, String error) {
-        Intent intent = new Intent("com.winlator.action.INSTALL_COMPLETED");
+        Intent intent = new Intent(ACTION_INSTALL_COMPLETED);
         intent.setPackage(getPackageName());
         intent.putExtra("file_name", fileName);
         intent.putExtra("success", success);
