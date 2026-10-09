@@ -31,6 +31,8 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.material.progressindicator.CircularProgressIndicator;
+
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -74,6 +76,10 @@ public class ContentsFragment extends Fragment {
 
     private AlertDialog installProgressDialog;
     private BroadcastReceiver installCompleteReceiver;
+    private BroadcastReceiver installProgressReceiver;
+    private CircularProgressIndicator installCircularProgress;
+    private TextView installStageView;
+    private TextView installPercentView;
 
     private final ActivityResultLauncher<Intent> filePickerLauncher =
             registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -140,6 +146,28 @@ public class ContentsFragment extends Fragment {
         } else {
             requireContext().registerReceiver(installCompleteReceiver, filter);
         }
+        registerInstallProgressReceiver();
+    }
+
+    /**
+     * 注册安装进度广播接收器
+     */
+    private void registerInstallProgressReceiver() {
+        if (installProgressReceiver != null) return;
+        installProgressReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                int progress = intent.getIntExtra(InstallService.EXTRA_PROGRESS, 0);
+                String stage = intent.getStringExtra(InstallService.EXTRA_STAGE);
+                updateInstallProgress(stage, progress);
+            }
+        };
+        IntentFilter progressFilter = new IntentFilter("com.winlator.action.INSTALL_PROGRESS");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requireContext().registerReceiver(installProgressReceiver, progressFilter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            requireContext().registerReceiver(installProgressReceiver, progressFilter);
+        }
     }
 
     /**
@@ -151,6 +179,12 @@ public class ContentsFragment extends Fragment {
                 requireContext().unregisterReceiver(installCompleteReceiver);
             } catch (Exception ignored) {}
             installCompleteReceiver = null;
+        }
+        if (installProgressReceiver != null) {
+            try {
+                requireContext().unregisterReceiver(installProgressReceiver);
+            } catch (Exception ignored) {}
+            installProgressReceiver = null;
         }
     }
 
@@ -295,8 +329,10 @@ public class ContentsFragment extends Fragment {
     private void showInstallDialog(String fileName) {
         new AlertDialog.Builder(requireContext())
                 .setTitle("安全提示")
-                .setMessage("即将安装：" + fileName + "\n安装将在后台进行，可在通知栏查看进度\n请确认文件来源可靠")
+                .setMessage("即将安装：" + fileName + "\n请确认文件来源可靠")
                 .setPositiveButton("确认安装", (d, w) -> {
+                    // 显示应用内圆形进度对话框
+                    showInstallProgressDialog(fileName);
                     // 启动后台安装服务
                     InstallService.startInstall(
                             requireContext(),
@@ -305,35 +341,82 @@ public class ContentsFragment extends Fragment {
                             installCategory,
                             baseFilesPath
                     );
-                    showToast("已开始后台安装，通知栏查看进度");
                 })
                 .setNegativeButton("取消操作", null)
                 .show();
     }
 
-    private void showInstallProgressDialog() {
+    private void showInstallProgressDialog(String fileName) {
         if (installProgressDialog != null && installProgressDialog.isShowing()) return;
 
         LinearLayout layout = new LinearLayout(requireContext());
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(dpToPx(24), dpToPx(24), dpToPx(24), dpToPx(24));
+        layout.setPadding(dpToPx(28), dpToPx(24), dpToPx(28), dpToPx(24));
         layout.setGravity(Gravity.CENTER);
 
-        ProgressBar progressBar = new ProgressBar(requireContext());
-        progressBar.setIndeterminate(true);
-        layout.addView(progressBar);
+        // 文件名
+        TextView titleView = new TextView(requireContext());
+        titleView.setText(fileName);
+        titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        titleView.setTypeface(Typeface.DEFAULT_BOLD);
+        titleView.setMaxLines(1);
+        titleView.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        titleView.setGravity(Gravity.CENTER);
+        titleView.setPadding(0, 0, 0, dpToPx(16));
+        layout.addView(titleView);
 
-        TextView message = new TextView(requireContext());
-        message.setText("正在安装，请稍候...");
-        message.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        message.setPadding(0, dpToPx(16), 0, 0);
-        layout.addView(message);
+        // 圆形进度条
+        installCircularProgress = new CircularProgressIndicator(requireContext());
+        installCircularProgress.setIndeterminate(false);
+        installCircularProgress.setProgress(0);
+        LinearLayout.LayoutParams cpLp = new LinearLayout.LayoutParams(dpToPx(72), dpToPx(72));
+        cpLp.gravity = Gravity.CENTER;
+        installCircularProgress.setLayoutParams(cpLp);
+        layout.addView(installCircularProgress);
+
+        // 阶段文字
+        installStageView = new TextView(requireContext());
+        installStageView.setText("正在安装");
+        installStageView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        installStageView.setGravity(Gravity.CENTER);
+        installStageView.setPadding(0, dpToPx(12), 0, 0);
+        layout.addView(installStageView);
+
+        // 百分比
+        installPercentView = new TextView(requireContext());
+        installPercentView.setText("0%");
+        installPercentView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        installPercentView.setGravity(Gravity.CENTER);
+        installPercentView.setPadding(0, dpToPx(4), 0, 0);
+        layout.addView(installPercentView);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
         builder.setView(layout);
         builder.setCancelable(false);
         installProgressDialog = builder.create();
         installProgressDialog.show();
+    }
+
+    /**
+     * 更新安装进度（圆形进度条）
+     */
+    private void updateInstallProgress(String stage, int progress) {
+        if (installCircularProgress != null) {
+            installCircularProgress.setProgress(progress);
+        }
+        if (installStageView != null && stage != null) {
+            installStageView.setText(stage);
+        }
+        if (installPercentView != null) {
+            installPercentView.setText(progress + "%");
+        }
+        if (progress >= 100 && installProgressDialog != null && installProgressDialog.isShowing()) {
+            installProgressDialog.dismiss();
+            installProgressDialog = null;
+            installCircularProgress = null;
+            installStageView = null;
+            installPercentView = null;
+        }
     }
 
     private void dismissInstallProgressDialog() {
@@ -539,11 +622,60 @@ public class ContentsFragment extends Fragment {
         statusView.setBackground(createRoundedBackground(Color.parseColor("#E8F5E9"), 8));
         item.addView(statusView);
 
-        item.setOnLongClickListener(v -> {
-            showDeleteDialog(name);
-            return true;
-        });
+        // 右侧操作按钮：信息 + 删除
+        LinearLayout btnLayout = new LinearLayout(requireContext());
+        btnLayout.setOrientation(LinearLayout.HORIZONTAL);
+        btnLayout.setGravity(Gravity.CENTER_VERTICAL);
+        btnLayout.setPadding(dpToPx(6), 0, 0, 0);
+
+        Button infoBtn = new Button(requireContext());
+        infoBtn.setText("信息");
+        infoBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        infoBtn.setTextColor(Color.parseColor("#2196F3"));
+        infoBtn.setAllCaps(false);
+        infoBtn.setPadding(dpToPx(10), dpToPx(4), dpToPx(10), dpToPx(4));
+        infoBtn.setBackground(createRoundedBackground(Color.parseColor("#E3F2FD"), 8));
+        infoBtn.setOnClickListener(v -> showInfoDialog(name));
+        btnLayout.addView(infoBtn);
+
+        Button delBtn = new Button(requireContext());
+        delBtn.setText("删除");
+        delBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        delBtn.setTextColor(Color.parseColor("#F44336"));
+        delBtn.setAllCaps(false);
+        delBtn.setPadding(dpToPx(10), dpToPx(4), dpToPx(10), dpToPx(4));
+        delBtn.setBackground(createRoundedBackground(Color.parseColor("#FFEBEE"), 8));
+        LinearLayout.LayoutParams delLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        delLp.setMargins(dpToPx(8), 0, 0, 0);
+        delBtn.setLayoutParams(delLp);
+        delBtn.setOnClickListener(v -> showDeleteDialog(name));
+        btnLayout.addView(delBtn);
+
+        item.addView(btnLayout);
         fileListContainer.addView(item);
+    }
+
+    /**
+     * 显示组件信息对话框
+     */
+    private void showInfoDialog(String name) {
+        File target = new File(baseFilesPath, currentStoragePath + File.separator + currentInstallPath + File.separator + name);
+        StringBuilder info = new StringBuilder();
+        info.append("名称：").append(name).append("\n");
+        info.append("类型：").append(getCategoryDisplayName(currentCategory)).append("\n");
+        if (isWineOrProton(currentCategory)) {
+            info.append("路径：rootfs/opt/installed-wine/").append(name).append("\n");
+        } else {
+            info.append("路径：installed_components/").append(currentCategory).append("/").append(name).append("\n");
+        }
+        info.append("大小：").append(formatFileSize(getFolderSize(target))).append("\n");
+        new AlertDialog.Builder(requireContext())
+                .setTitle("组件信息")
+                .setMessage(info.toString())
+                .setPositiveButton("知道了", null)
+                .setNegativeButton("删除", (d, w) -> showDeleteDialog(name))
+                .show();
     }
 
     /**
