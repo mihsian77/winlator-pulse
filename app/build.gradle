@@ -1,8 +1,20 @@
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 android {
     namespace 'com.winlator'
     compileSdk 35
+
+    kotlinOptions {
+        jvmTarget = '17'
+        // JavaSteam 本地 jar 由 Kotlin 2.x 编译，跳过元数据版本检查以链接到 1.9.0 stdlib
+        freeCompilerArgs += ['-Xskip-metadata-version-check']
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
 
     defaultConfig {
         applicationId 'com.winlator'
@@ -12,11 +24,25 @@ android {
         versionName "11.2.cn.04"
     }
 
+    // 共存 flavor：编译时通过 -PcoexistAppId=com.xxx.xxx 指定新包名
+    // 用法: ./gradlew assembleCoexistRelease -PcoexistAppId=com.xxx.xxx
+    flavorDimensions "coexist"
+    productFlavors {
+        standard {
+            dimension "coexist"
+            applicationId 'com.winlator'
+        }
+        coexist {
+            dimension "coexist"
+            applicationId project.hasProperty('coexistAppId') ? project.coexistAppId : 'com.winlator.pulse'
+        }
+    }
+
     buildTypes {
         debug {
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-
+            // debug 构建不混淆：AGP 8.x 对 debuggable 构建自动禁用混淆，
+            // 开 minifyEnabled 只会白跑一遍 ProGuard，拖慢本地和 CI 调试构建。
+            minifyEnabled false
             ndk {
                 abiFilters 'arm64-v8a'
             }
@@ -34,6 +60,19 @@ android {
 
     lintOptions {
         checkReleaseBuilds false
+    }
+
+    // 资源压缩排除清单。
+    // assets 里的 .tzst（约 200MB，占 99%）本身已是 zstd 高压包，
+    // 若再让 AAPT 用 deflate 压一遍，会在 CI 上耗尽内存/磁盘，
+    // 导致 compressXxxReleaseAssets 失败。这里统一改为直接存储：
+    // 打包秒过、APK 体积几乎不变，运行时由 zstd 自行解压，不依赖 APK 压缩。
+    androidResources {
+        noCompress += [
+            'tzst', 'zst', '7z', 'bz2', 'flac', 'gz', 'iso',
+            'mp3', 'mp4', 'ogg', 'opus', 'pak', 'so',
+            'tar', 'xz', 'zip', 'sf2'
+        ]
     }
 
     // 「仅编译 Java」的 CI 流程会先删掉 app/src/main/cpp，再传 -PskipNative 跳过下面这段
@@ -74,6 +113,8 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation files('libs/WinlatorHUD-3.9.0.aar')
+    implementation fileTree(dir: 'libs/steam', include: ['*.jar'])
     implementation 'androidx.appcompat:appcompat:1.4.0'
     implementation 'androidx.preference:preference:1.2.1'
     implementation 'com.google.android.material:material:1.4.0'
@@ -81,4 +122,20 @@ dependencies {
     implementation 'org.tukaani:xz:1.12'
     implementation 'org.apache.commons:commons-compress:1.28.0'
     implementation 'androidx.lifecycle:lifecycle-process:2.5.1'
+    // Kotlin
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    // Steam Depot 下载器依赖
+    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+    implementation 'com.squareup.okio:okio:3.16.0'
+    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'com.google.protobuf:protobuf-java:4.31.1'
+    implementation 'org.apache.commons:commons-lang3:3.18.0'
+    implementation 'io.ktor:ktor-client-core:3.2.2'
+    implementation 'io.ktor:ktor-client-cio:3.2.2'
+    implementation 'io.ktor:ktor-client-websockets:3.2.2'
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0'
+    implementation 'org.bouncycastle:bcprov-jdk15on:1.68'
+    implementation 'org.conscrypt:conscrypt-android:2.5.2'
+    implementation 'org.openjsse:openjsse:1.1.7'
 }
