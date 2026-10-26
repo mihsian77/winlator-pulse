@@ -19,7 +19,7 @@
 
 ## 1. 背景与目标
 
-Winlator-CN 当前只能从应用内部启动 exe：
+Winlator Pulse 当前只能从应用内部启动 exe：
 
 - 容器文件管理器点击文件 → `ContainerFileManagerFragment.java:375-390` → `XServerDisplayActivity` + `exec_path`
 - 快捷方式 → `ShortcutsFragment.runFromShortcut()` / `ShortcutLauncherActivity.java:11-34` + `shortcut_path`

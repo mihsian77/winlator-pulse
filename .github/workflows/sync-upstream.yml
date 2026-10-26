@@ -1,0 +1,218 @@
+name: 同步官方上游（PR 模式）
+
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: '强制同步（即使上游无新提交也重新生成 PR）'
+        type: boolean
+        default: false
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_REPO: 'hostei33/winlator-cn'
+  UPSTREAM_BRANCH: 'main'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: false
+          fetch-depth: 0
+
+      - name: 配置 git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git"
+
+      - name: 克隆官方上游到临时目录
+        run: |
+          git clone --depth 1 --branch "${UPSTREAM_BRANCH}" "https://github.com/${UPSTREAM_REPO}.git" /tmp/upstream-cn 2>&1 | tail -2
+          echo "=== 官方上游最新提交 ==="
+          cd /tmp/upstream-cn && git log --oneline -3
+
+      - name: 检查上游是否有新提交
+        id: check
+        run: |
+          LOCAL_DATE=$(git log -1 --format=%ct origin/main)
+          UPSTREAM_DATE=$(cd /tmp/upstream-cn && git log -1 --format=%ct)
+          echo "本地最新提交日期: $LOCAL_DATE  官方最新提交日期: $UPSTREAM_DATE"
+          if [ "$UPSTREAM_DATE" -le "$LOCAL_DATE" ] && [ "${{ github.event.inputs.force_sync }}" != "true" ]; then
+            echo "up_to_date=true" >> $GITHUB_OUTPUT
+            echo "官方无新提交，跳过。"
+          else
+            echo "up_to_date=false" >> $GITHUB_OUTPUT
+            echo "官方有新提交（或强制同步），开始同步。"
+          fi
+
+      - name: 用 rsync 同步官方 Java/res 代码
+        id: sync
+        if: steps.check.outputs.up_to_date == 'false'
+        run: |
+          BRANCH="auto-sync-official"
+          echo "sync_branch=$BRANCH" >> $GITHUB_OUTPUT
+
+          git checkout -B "$BRANCH" origin/main
+
+          # Java 源码保护名单（路径相对于 java/ 目录）
+          JAVA_EXCLUDES=(
+            "com/catfixture/"
+            "com/ewt45/"
+            "com/winlator/MainApplication.java"
+            "com/winlator/core/AppUtils.java"
+            "com/winlator/core/PatchUtils.java"
+            "com/winlator/core/LaunchPathResolver.java"
+            "com/winlator/container/LaunchArgs.java"
+            "com/winlator/xserver/ScreenInfo.java"
+            "com/winlator/xserver/extensions/XRandRExtension.java"
+            "com/winlator/xserver/XServer.java"
+            "com/winlator/XServerDisplayActivity.java"
+            "com/winlator/services/InstallService.java"
+            "com/winlator/Contents/ContentsFragment.java"
+            "com/winlator/core/DownloadProgressDialog.java"
+            "com/winlator/widget/FrameRating.java"
+            "com/winlator/widget/HudSettingsDialog.java"
+            "com/winlator/hud/WinlatorHUD.java"
+            "com/winlator/box64/Box64Preset.java"
+            "com/winlator/container/Container.java"
+            "com/winlator/ContainerDetailFragment.java"
+            "com/winlator/renderer/GLRenderer.java"
+            "com/winlator/XServerView.java"
+            "com/winlator/ExternalLaunchActivity.java"
+            "com/winlator/IconPackDetailsActivity.java"
+            "com/winlator/IconPackManagerActivity.java"
+            "com/winlator/ImageFilePickerActivity.java"
+            "com/winlator/SavesFragment.java"
+            "com/winlator/ShortcutLauncherActivity.java"
+            "com/winlator/StoresFragment.java"
+          )
+
+          # res 资源保护名单（路径相对于 res/ 目录）
+          RES_EXCLUDES=(
+            # hostei33 定制的 values 资源
+            "values/strings.xml"
+            "values/arrays.xml"
+            "values/styles.xml"
+            "values/themes.xml"
+            "values/colors.xml"
+            "values/attrs.xml"
+            "values/dimens.xml"
+            "values-zh/"
+            "values-night/"
+            # hostei33 定制的菜单（含触摸板手势等独家菜单项）
+            "menu/"
+            # Pulse 定制的布局
+            "layout/download_progress_dialog.xml"
+          )
+
+          JAVA_EXCLUDE_ARGS=""
+          for f in "${JAVA_EXCLUDES[@]}"; do
+            JAVA_EXCLUDE_ARGS="$JAVA_EXCLUDE_ARGS --exclude=$f"
+          done
+
+          RES_EXCLUDE_ARGS=""
+          for f in "${RES_EXCLUDES[@]}"; do
+            RES_EXCLUDE_ARGS="$RES_EXCLUDE_ARGS --exclude=$f"
+          done
+
+          echo "=== [暂禁用] Java 源码同步 ==="
+          echo "原因：hostei33 版本与官方原版差异过大（触摸板/输入控制/容器API完全不同）"
+          echo "      直接 rsync 会导致 50+ 文件 API 不兼容，编译失败。"
+          echo "      待逐步重构脱离 hostei33 后再启用。"
+          # rsync -av $JAVA_EXCLUDE_ARGS \
+          #   /tmp/upstream-cn/app/src/main/java/ \
+          #   app/src/main/java/ 2>&1 | tail -20
+
+          echo ""
+          echo "=== 同步官方 res 资源（仅同步其他语言翻译，保护所有Pulse定制资源） ==="
+          # 只同步 values-xx 翻译目录（排除 values-zh 中文），其他 res 目录全部保护
+          # 原因：menu/layout/values等被hostei33深度定制，官方覆盖会导致R.id/R.string丢失，编译失败
+          for lang_dir in /tmp/upstream-cn/app/src/main/res/values-*/; do
+            lang_name=$(basename "$lang_dir")
+            if [ "$lang_name" != "values-zh" ]; then
+              mkdir -p "app/src/main/res/$lang_name"
+              rsync -av "$lang_dir" "app/src/main/res/" 2>&1 | tail -3
+            fi
+          done
+
+          echo ""
+          echo "=== 变更统计 ==="
+          git add -A
+          CHANGED=$(git diff --cached --name-only | wc -l)
+          echo "变更文件数: $CHANGED"
+          git diff --cached --name-only | head -30
+
+          if [ "$CHANGED" -eq 0 ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "无实际变更，不开 PR。"
+          else
+            git commit -m "sync: 同步官方上游代码（自动同步 Java 源码和 res 资源，Pulse 定制文件已排除）" 2>&1 | tail -3
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 推送 auto-sync 分支
+        if: steps.check.outputs.up_to_date == 'false' && steps.sync.outputs.has_changes == 'true'
+        run: |
+          BRANCH="${{ steps.sync.outputs.sync_branch }}"
+          git push --force origin "$BRANCH" 2>&1 | tail -3
+
+      - name: 创建/更新 PR 到 main
+        if: steps.check.outputs.up_to_date == 'false' && steps.sync.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="${{ steps.sync.outputs.sync_branch }}"
+          UPSTREAM_MSG=$(cd /tmp/upstream-cn && git log --oneline -5)
+
+          # 写 PR body 到临时文件
+          echo "## 自动同步官方上游 brunodev85/winlator-app" > /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "此 PR 由定时工作流自动创建，同步官方 Winlator 最新 Java 源码和 res 资源。" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### 同步范围" >> /tmp/pr-body.md
+          echo "- Java 源码（app/src/main/java/）" >> /tmp/pr-body.md
+          echo "- 资源文件（app/src/main/res/）" >> /tmp/pr-body.md
+          echo "- 不同步 native 层（cpp/，Pulse 有共存定制）" >> /tmp/pr-body.md
+          echo "- 不同步组件包（assets/，Pulse 自选版本）" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### 保护文件" >> /tmp/pr-body.md
+          echo "Pulse 原创/共存定制文件已排除：XRandR、后台安装、进度对话框、共存核心、中文资源、构建配置。" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### 说明" >> /tmp/pr-body.md
+          echo "- 此 PR 会自动触发 CI 构建验证" >> /tmp/pr-body.md
+          echo "- 构建绿色后再合并" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### 官方最近提交" >> /tmp/pr-body.md
+          echo '```' >> /tmp/pr-body.md
+          echo "$UPSTREAM_MSG" >> /tmp/pr-body.md
+          echo '```' >> /tmp/pr-body.md
+
+          echo "检查是否已有 open PR..."
+          EXIST=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>&1)
+          echo "查询结果: $EXIST"
+
+          if echo "$EXIST" | grep -qE '^[0-9]+$'; then
+            echo "更新已有 PR #$EXIST"
+            gh pr edit "$EXIST" --title "sync: 同步官方上游（自动生成）" --body-file /tmp/pr-body.md 2>&1
+          else
+            echo "创建新 PR"
+            gh pr create --base main --head "$BRANCH" --title "sync: 同步官方上游（自动生成）" --body-file /tmp/pr-body.md 2>&1
+          fi
+          echo "PR 操作完成"
+
+      - name: 无更新时提示
+        if: steps.check.outputs.up_to_date == 'true'
+        run: echo "官方已是最新，无需同步。"
