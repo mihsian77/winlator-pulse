@@ -72,6 +72,7 @@ import com.winlator.math.Mathf;
 import com.winlator.renderer.GLRenderer;
 import com.winlator.services.ForegroundService;
 import com.winlator.widget.FrameRating;
+import com.winlator.widget.HudSettingsDialog;
 import com.winlator.widget.InputControlsView;
 import com.winlator.widget.MagnifierView;
 import com.winlator.widget.TouchpadView;
@@ -225,7 +226,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             String dxwrapperConfig = container.getDXWrapperConfig();
             String graphicsDriverConfig = container.getGraphicsDriverConfig();
             audioDriverConfig = new KeyValueSet(container.getAudioDriverConfig());
-            screenInfo = resolveScreenInfo(container.getScreenSize());
+            screenInfo = new ScreenInfo(container.getScreenSize());
             screenOrientation = container.getScreenOrientation();
             swapResolution = container.isSwapResolution();
 
@@ -236,7 +237,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             dxwrapperConfig = launchArgs.getExtra("dxwrapperConfig", dxwrapperConfig);
             graphicsDriverConfig = launchArgs.getExtra("graphicsDriverConfig", graphicsDriverConfig);
             audioDriverConfig = new KeyValueSet(launchArgs.getExtra("audioDriverConfig", audioDriverConfig.toString()));
-            screenInfo = resolveScreenInfo(launchArgs.getExtra("screenSize", container.getScreenSize()));
+            screenInfo = new ScreenInfo(launchArgs.getExtra("screenSize", container.getScreenSize()));
             screenOrientation = launchArgs.getExtra("screenOrientation", screenOrientation);
             swapResolution = launchArgs.getExtra("swapResolution", String.valueOf(swapResolution)).equals("true");
 
@@ -265,6 +266,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         }
 
         preloaderDialog.show(R.string.starting_up);
+
+        // 将用户设置的刷新率传递给 X server，供 XRandR 扩展返回给 Wine/游戏
+        screenInfo.refreshRate = container.getRefreshRate();
 
         inputControlsManager = new InputControlsManager(this);
         xServer = new XServer(this, screenInfo);
@@ -335,18 +339,15 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         String launchId = intent.getStringExtra(LaunchArgs.EXTRA_LAUNCH_ID);
         if (launchId != null && launchId.equals(getIntent().getStringExtra(LaunchArgs.EXTRA_LAUNCH_ID))) return;
 
-        // 外置启动不弹任何确认框，直接替换当前会话
-        // 先摘掉终止回调：停环境会 kill guest 进程，否则会触发 exit() 再次重启应用
-        if (environment != null) {
-            GuestProgramLauncherComponent launcher = environment.getComponent(GuestProgramLauncherComponent.class);
-            if (launcher != null) launcher.setTerminationCallback(null);
-        }
-        // 只杀 box64 主进程会残留 wineserver/explorer 等子进程，逐个结束 guest 进程树
-        for (ProcessHelper.PStat process : ProcessHelper.getChildProcesses()) {
-            if (process.guestProcess) ProcessHelper.killProcess(process.pid);
-        }
-        pendingLaunchIntent = intent;
-        recreate();
+        ContentDialog.confirm(this, R.string.external_launch_restart_session, () -> {
+            // 先摘掉终止回调：停环境会 kill guest 进程，否则会触发 exit() 再次重启应用
+            if (environment != null) {
+                GuestProgramLauncherComponent launcher = environment.getComponent(GuestProgramLauncherComponent.class);
+                if (launcher != null) launcher.setTerminationCallback(null);
+            }
+            pendingLaunchIntent = intent;
+            recreate();
+        });
     }
 
     @Override
@@ -354,11 +355,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         super.onWindowFocusChanged(hasFocus);
 
         if (hasFocus) {
-            if (capturePointerOnExternalMouse) {
-                // Captured events are delivered to the focused view.
-                View captureView = inputControlsView.getVisibility() == View.VISIBLE ? inputControlsView : touchpadView;
-                if (captureView.requestFocus()) captureView.requestPointerCapture();
-            }
+            if (capturePointerOnExternalMouse) touchpadView.requestPointerCapture();
 
             if (winHandler != null && clipboardManager != null && clipboardManager.hasPrimaryClip()) {
                 ClipData primaryClip = clipboardManager.getPrimaryClip();
@@ -468,6 +465,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 break;
             case R.id.menu_item_screen_effect:
                 (new ScreenEffectDialog(this)).show();
+                drawerLayout.closeDrawers();
+                break;
+            case R.id.menu_item_hud_settings:
+                (new HudSettingsDialog(this, () -> {
+                    if (frameRating != null) frameRating.refreshSettings();
+                })).show();
                 drawerLayout.closeDrawers();
                 break;
             case R.id.menu_item_pip_mode:
@@ -594,6 +597,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         envVars.put("MESA_NO_ERROR", "1");
         envVars.put("WINEPREFIX", rootPath+RootFS.WINEPREFIX);
         envVars.put("WINE_DO_NOT_CREATE_DXGI_DEVICE_MANAGER", "1");
+        // 把 cache 目录传给 native，避免硬编码路径导致共存版写错位置
+        envVars.put("APP_CACHE_DIR", getCacheDir().getAbsolutePath());
 
         boolean enableWineDebug = preferences.getBoolean("enable_wine_debug", false);
         String wineDebugChannels = preferences.getString("wine_debug_channels", SettingsFragment.DEFAULT_WINE_DEBUG_CHANNELS);
@@ -611,14 +616,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
             guestProgramLauncherComponent.setGuestExecutable(guestExecutable);
 
             envVars.putAll(container.getEnvVars());
-            if (launchArgs != null) {
-                envVars.putAll(launchArgs.getExtra("envVars"));
-                // 语言环境/时区单独覆盖，不影响其它环境变量
-                String lcAll = launchArgs.getOverride("lcAll", "");
-                if (!lcAll.isEmpty()) envVars.put("LC_ALL", lcAll);
-                String tz = launchArgs.getOverride("tz", "");
-                if (!tz.isEmpty()) envVars.put("TZ", tz);
-            }
+            if (launchArgs != null) envVars.putAll(launchArgs.getExtra("envVars"));
+            // 容器设置的语言和时区优先于环境变量中的默认值
+            envVars.put("LC_ALL", container.getLcAll());
+            envVars.put("TZ", container.getTimezone());
             if (!envVars.has("WINEESYNC")) envVars.put("WINEESYNC", "1");
 
             guestProgramLauncherComponent.setBox64Preset(launchArgs != null ? launchArgs.getExtra("box64Preset", container.getBox64Preset()) : container.getBox64Preset());
@@ -686,12 +687,16 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     private void setupUI() {
         FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
         xServerView = new XServerView(this, xServer);
+        // 设置刷新率：0 表示自动匹配系统最高刷新率，其他值为固定 60/90/120/144Hz
+        xServerView.setRefreshRate(container.getRefreshRate());
         final GLRenderer renderer = xServerView.getRenderer();
         renderer.setCursorVisible(false);
         renderer.setCursorColor(preferences.getInt("cursor_color", 0xffffff));
         renderer.setCursorScale(preferences.getFloat("cursor_scale", 1.0f));
         renderer.setForceWindowsFullscreen(launchArgs != null && launchArgs.getExtra("forceFullscreen", "0").equals("1"));
         final boolean startFullscreen = launchArgs != null && launchArgs.getExtra("toggleFullscreen", "0").equals("1");
+        // 容器设置的强制全屏拉伸：低分辨率游戏画面拉伸至全屏
+        if (container.isFullscreenStretched()) renderer.setFullscreen(true);
 
         xServer.setRenderer(renderer);
         rootView.addView(xServerView);
@@ -714,10 +719,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         inputControlsView.setOverlayOpacity(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
         inputControlsView.setTouchHapticFeedbackEnabled(preferences.getBoolean("haptic_feedback", false));
         inputControlsView.setTouchpadView(touchpadView);
-        if (capturePointerOnExternalMouse) {
-            inputControlsView.setOnCapturedPointerListener((view, event) ->
-                touchpadView.isEnabled() && touchpadView.onCapturedPointer(view, event));
-        }
         inputControlsView.setXServer(xServer);
         inputControlsView.setVisibility(View.GONE);
         rootView.addView(inputControlsView);
@@ -1193,14 +1194,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     public void setScreenInfo(ScreenInfo screenInfo) {
         this.screenInfo = screenInfo;
-    }
-
-    private ScreenInfo resolveScreenInfo(String value) {
-        if (!value.equals("native")) return new ScreenInfo(value);
-
-        int width = AppUtils.getScreenWidth();
-        int height = AppUtils.getScreenHeight();
-        return new ScreenInfo(width - (width % 2), height - (height % 2));
     }
 
     public String getWinComponents() {

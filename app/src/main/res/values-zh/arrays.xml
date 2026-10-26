@@ -17,6 +17,13 @@
         <item>1600x900 (16:9)</item>
         <item>1920x1080 (16:9)</item>
     </string-array>
+    <string-array name="refresh_rate_entries">
+        <item>@string/system_max_refresh</item>
+        <item>60 Hz</item>
+        <item>90 Hz</item>
+        <item>120 Hz</item>
+        <item>144 Hz</item>
+    </string-array>
     <string-array name="audio_driver_entries">
         <item>ALSA</item>
         <item>PulseAudio</item>

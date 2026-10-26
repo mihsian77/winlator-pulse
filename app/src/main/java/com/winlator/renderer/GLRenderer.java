@@ -289,6 +289,12 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
         xServerView.requestRender();
     }
 
+    // 直接设置全屏拉伸模式（容器启动时应用，无需用户手动切换）
+    public void setFullscreen(boolean fullscreen) {
+        this.fullscreen = fullscreen;
+        xServerView.requestRender();
+    }
+
     private Drawable createRootCursorDrawable() {
         Context context = xServerView.getContext();
         BitmapFactory.Options options = new BitmapFactory.Options();

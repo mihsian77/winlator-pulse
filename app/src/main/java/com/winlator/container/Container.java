@@ -18,10 +18,55 @@ import java.io.File;
 import java.util.Iterator;
 
 public class Container {
-    public static final String DEFAULT_ENV_VARS = "LC_ALL=zh_CN.utf8 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact MESA_SHADER_CACHE_MAX_SIZE=512MB TU_DEBUG=noconform MESA_GL_VERSION_OVERRIDE=3.1 DXVK_HUD=fps,version TZ=Asia/Shanghai MESA_VK_WSI_DEBUG=-sw MESA_EXTENSION_MAX_YEAR=2025 BOX64_DYNAREC_WEAKBARRIER=-1 mesa_glthread=true WINEESYNC=1 MESA_SHADER_CACHE_DISABLE=false DXVK_ASYNC=1 DXVK_DISABLE_TIMELINE_SEMAPHORES=1 BOX64_MMAP32=1 LIBGL_ALWAYS_SOFTWARE=0 DRAW_USE_LLVM=0 GST_DEBUG=0 MANGOHUD=0";
+    // 默认环境变量（不含 LC_ALL 和 TZ，这两项由独立的语言/时区设置控制，启动时注入）
+    public static final String DEFAULT_ENV_VARS = "ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact MESA_SHADER_CACHE_MAX_SIZE=512MB TU_DEBUG=noconform MESA_GL_VERSION_OVERRIDE=3.1 DXVK_HUD=fps,version MESA_VK_WSI_DEBUG=-sw MESA_EXTENSION_MAX_YEAR=2025 BOX64_DYNAREC_WEAKBARRIER=-1 mesa_glthread=true WINEESYNC=1 MESA_SHADER_CACHE_DISABLE=false DXVK_ASYNC=1 DXVK_DISABLE_TIMELINE_SEMAPHORES=1 BOX64_MMAP32=1 LIBGL_ALWAYS_SOFTWARE=0 DRAW_USE_LLVM=0 GST_DEBUG=0 MANGOHUD=0";
     public static final String DEFAULT_SCREEN_SIZE = "1280x720";
     public static final String DEFAULT_SCREEN_ORIENTATION = "landscape";
     public static final boolean DEFAULT_SWAP_RESOLUTION = false;
+    // 刷新率：0 表示自动识别设备最高刷新率，其他值为固定刷新率（60/90/120/144）
+    public static final int DEFAULT_REFRESH_RATE = 0;
+    // 强制全屏拉伸：低分辨率游戏画面拉伸至全屏，避免黑边
+    public static final boolean DEFAULT_FULLSCREEN_STRETCHED = false;
+    // 容器内语言环境（LC_ALL）默认值：自动检测系统语言，匹配失败时回退简体中文
+    public static String getDefaultLcAll() {
+        String lang = java.util.Locale.getDefault().getLanguage();
+        String country = java.util.Locale.getDefault().getCountry();
+        String locale = lang + "_" + country + ".utf8";
+        // 只匹配下拉列表中支持的语言，其他语言回退英语
+        if (locale.equals("zh_CN.utf8") || locale.equals("zh_TW.utf8") ||
+            locale.equals("en_US.utf8") || locale.equals("ja_JP.utf8") ||
+            locale.equals("ko_KR.utf8") || locale.equals("ru_RU.utf8")) {
+            return locale;
+        }
+        // 只匹配语言前缀（如 en_GB 匹配 en_US.utf8）
+        switch (lang) {
+            case "zh": return country.equals("TW") ? "zh_TW.utf8" : "zh_CN.utf8";
+            case "en": return "en_US.utf8";
+            case "ja": return "ja_JP.utf8";
+            case "ko": return "ko_KR.utf8";
+            case "ru": return "ru_RU.utf8";
+            default: return "en_US.utf8";
+        }
+    }
+    // 容器内时区（TZ）默认值：自动检测系统时区，匹配失败时回退上海
+    public static String getDefaultTimezone() {
+        String tz = java.util.TimeZone.getDefault().getID();
+        // 下拉列表支持的时区
+        String[] supported = {"Asia/Shanghai", "Asia/Hong_Kong", "Asia/Taipei",
+            "Asia/Tokyo", "Asia/Seoul", "America/New_York", "America/Los_Angeles",
+            "Europe/London", "Europe/Berlin", "Europe/Moscow"};
+        for (String s : supported) {
+            if (s.equals(tz)) return tz;
+        }
+        // 按时区偏移匹配（如 Asia/Singapore 偏移+8 匹配 Asia/Shanghai）
+        int offset = java.util.TimeZone.getDefault().getRawOffset() / 3600000;
+        if (offset >= 7 && offset <= 9) return "Asia/Shanghai";      // 东八区
+        if (offset >= -5 && offset <= -4) return "America/New_York";  // 美东
+        if (offset >= -8 && offset <= -7) return "America/Los_Angeles"; // 美西
+        if (offset >= 0 && offset <= 1) return "Europe/London";       // 英国
+        if (offset >= 1 && offset <= 2) return "Europe/Berlin";       // 中欧
+        return "Asia/Shanghai";
+    }
     public static final String DEFAULT_AUDIO_DRIVER = AudioDrivers.ALSA;
     public static final String DEFAULT_DXWRAPPER = DXWrappers.DXVK;
     public static final String DEFAULT_WINCOMPONENTS = "direct3d=1,directsound=1,directmusic=1,directshow=0,directplay=0,xaudio=1,vcrun2005=0,vcrun2010=1,wmdecoder=1";
@@ -39,6 +84,10 @@ public class Container {
     private String screenSize = DEFAULT_SCREEN_SIZE;
     private String screenOrientation = DEFAULT_SCREEN_ORIENTATION;
     private boolean swapResolution = DEFAULT_SWAP_RESOLUTION;
+    private int refreshRate = DEFAULT_REFRESH_RATE;
+    private boolean fullscreenStretched = DEFAULT_FULLSCREEN_STRETCHED;
+    private String lcAll = getDefaultLcAll();
+    private String timezone = getDefaultTimezone();
     private String envVars = DEFAULT_ENV_VARS;
     private String graphicsDriver = GraphicsDrivers.DEFAULT_VULKAN_DRIVER+","+ GraphicsDrivers.DEFAULT_OPENGL_DRIVER;
     private String dxwrapper = DEFAULT_DXWRAPPER;
@@ -96,6 +145,38 @@ public class Container {
 
     public void setSwapResolution(boolean swapResolution) {
         this.swapResolution = swapResolution;
+    }
+
+    public int getRefreshRate() {
+        return refreshRate;
+    }
+
+    public void setRefreshRate(int refreshRate) {
+        this.refreshRate = refreshRate;
+    }
+
+    public boolean isFullscreenStretched() {
+        return fullscreenStretched;
+    }
+
+    public void setFullscreenStretched(boolean fullscreenStretched) {
+        this.fullscreenStretched = fullscreenStretched;
+    }
+
+    public String getLcAll() {
+        return lcAll;
+    }
+
+    public void setLcAll(String lcAll) {
+        this.lcAll = lcAll != null ? lcAll : getDefaultLcAll();
+    }
+
+    public String getTimezone() {
+        return timezone;
+    }
+
+    public void setTimezone(String timezone) {
+        this.timezone = timezone != null ? timezone : getDefaultTimezone();
     }
 
     public String getEnvVars() {
@@ -333,6 +414,10 @@ public class Container {
             data.put("screenSize", screenSize);
             data.put("screenOrientation", screenOrientation);
             data.put("swapResolution", swapResolution);
+            data.put("refreshRate", refreshRate);
+            data.put("fullscreenStretched", fullscreenStretched);
+            data.put("lcAll", lcAll);
+            data.put("timezone", timezone);
             data.put("envVars", envVars);
             data.put("cpuList", cpuList);
             data.put("cpuListWoW64", cpuListWoW64);
@@ -379,6 +464,18 @@ public class Container {
                     break;
                 case "swapResolution" :
                     setSwapResolution(data.getBoolean(key));
+                    break;
+                case "refreshRate" :
+                    setRefreshRate(data.getInt(key));
+                    break;
+                case "fullscreenStretched" :
+                    setFullscreenStretched(data.getBoolean(key));
+                    break;
+                case "lcAll" :
+                    setLcAll(data.getString(key));
+                    break;
+                case "timezone" :
+                    setTimezone(data.getString(key));
                     break;
                 case "envVars" :
                     setEnvVars(data.getString(key));
