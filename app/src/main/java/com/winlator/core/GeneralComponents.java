@@ -25,7 +25,8 @@ import java.util.Locale;
 
 public abstract class GeneralComponents {
     public enum InstallMode {DOWNLOAD, FILE, BOTH}
-    private static final String INSTALLABLE_COMPONENTS_URL = "http://cdn4.52emu.cn/wlt/v10/installable_components/%s";
+    private static final String COMPONENTS_INDEX_URL = "https://raw.githubusercontent.com/mihsian77/winlator-components/main/%s/index.txt";
+    private static final String COMPONENTS_DOWNLOAD_URL = "https://github.com/mihsian77/winlator-components/releases/download/%s/%s";
 
     public enum Type {
         BOX64, TURNIP, DXVK, VKD3D, WINED3D, SOUNDFONT, ADRENOTOOLS_DRIVER;
@@ -232,7 +233,7 @@ public abstract class GeneralComponents {
         final Activity activity = (Activity)spinner.getContext();
         File destination = new File(getComponentDir(type, activity), filename);
         if (destination.isFile()) destination.delete();
-        HttpUtils.download(activity, String.format(INSTALLABLE_COMPONENTS_URL, type.lowerName()+"/"+filename), destination, (success) -> {
+        HttpUtils.download(activity, String.format(COMPONENTS_DOWNLOAD_URL, type.lowerName(), filename), destination, (success) -> {
             if (success) {
                 loadSpinner(type, spinner, parseDisplayText(type, filename), defaultItem);
             }
@@ -336,7 +337,7 @@ public abstract class GeneralComponents {
         final Activity activity = (Activity)spinner.getContext();
         final PreloaderDialog preloaderDialog = new PreloaderDialog(activity);
         preloaderDialog.show(R.string.loading);
-        HttpUtils.download(String.format(INSTALLABLE_COMPONENTS_URL, type.lowerName()+"/index.txt"), (content) -> activity.runOnUiThread(() -> {
+        HttpUtils.download(String.format(COMPONENTS_INDEX_URL, type.lowerName()), (content) -> activity.runOnUiThread(() -> {
             preloaderDialog.close();
             if (content != null) {
                 if (content.isEmpty()) {
