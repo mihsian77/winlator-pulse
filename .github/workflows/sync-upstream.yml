@@ -1,0 +1,103 @@
+name: 同步 hostei33 上游
+
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: '强制同步（即使上游无新提交也开 PR）'
+        type: boolean
+        default: false
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: 配置 git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git"
+
+      - name: 添加并拉取 hostei33 上游
+        run: |
+          git remote add upstream https://github.com/hostei33/winlator-cn.git
+          git fetch upstream main
+
+      - name: 检查上游是否有新提交
+        id: check
+        run: |
+          LOCAL=$(git rev-parse HEAD)
+          UPSTREAM=$(git rev-parse upstream/main)
+          echo "本地 main:    $LOCAL"
+          echo "上游 main:    $UPSTREAM"
+          if [ "$LOCAL" = "$UPSTREAM" ]; then
+            echo "up_to_date=true" >> $GITHUB_OUTPUT
+            echo "已和上游一致，跳过。"
+          elif git merge-base --is-ancestor upstream/main HEAD; then
+            echo "up_to_date=true" >> $GITHUB_OUTPUT
+            echo "上游已包含在本地，跳过。"
+          else
+            echo "up_to_date=false" >> $GITHUB_OUTPUT
+            echo "上游有新提交，开始合并。"
+          fi
+
+      - name: 尝试直接合并到 main
+        id: merge
+        if: steps.check.outputs.up_to_date == 'false'
+        run: |
+          if git merge upstream/main --no-edit --ff-only; then
+            echo "result=ff" >> $GITHUB_OUTPUT
+            git push origin main
+            echo "fast-forward 合并成功，已直接 push 到 main。"
+          else
+            git merge --abort || true
+            echo "result=conflict" >> $GITHUB_OUTPUT
+            echo "直接合并有冲突，改开 PR 人工处理。"
+          fi
+
+      - name: 有冲突时开 PR
+        if: steps.check.outputs.up_to_date == 'false' && steps.merge.outputs.result == 'conflict'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="auto-sync-upstream"
+          git checkout -B "$BRANCH"
+          git merge upstream/main --no-edit || true
+          git add -A
+          git commit -m "sync: 合并 hostei33 上游（有冲突待人工解决）" --allow-empty || true
+          git push --force origin "$BRANCH"
+
+          UPSTREAM_MSG=$(git log --oneline upstream/main -5)
+          cat > /tmp/pr-body.md << EOF
+## 自动合并 hostei33/winlator-cn 上游
+
+上游有新提交但与本仓库改动有冲突，需要人工解决。
+
+### 上游最近提交
+
+\`\`\`
+$UPSTREAM_MSG
+\`\`\`
+EOF
+
+          EXIST=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>&1)
+          if echo "$EXIST" | grep -qE '^[0-9]+$'; then
+            gh pr edit "$EXIST" --title "sync: 合并 hostei33 上游（冲突）" --body-file /tmp/pr-body.md
+          else
+            gh pr create --base main --head "$BRANCH" --title "sync: 合并 hostei33 上游（冲突）" --body-file /tmp/pr-body.md
+          fi
