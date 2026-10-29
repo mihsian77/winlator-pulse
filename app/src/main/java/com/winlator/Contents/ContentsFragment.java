@@ -50,7 +50,10 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 public class ContentsFragment extends Fragment {
-    private static final String[] FILE_TYPES = {"dxvk", "vkd3d", "box64", "turnip", "wined3d"};
+    private static final String[] FILE_TYPES = {"dxvk", "vkd3d", "box64", "turnip", "wined3d", "wine", "proton"};
+
+    // 有在线仓库的组件类型（可以在线下载）
+    private static final java.util.Set<String> ONLINE_TYPES = new java.util.HashSet<>(java.util.Arrays.asList("dxvk", "vkd3d", "box64", "turnip", "wined3d"));
     private static final String TZSD_EXTENSION = ".tzst";
     private static final int CORNER_RADIUS_DP = 12;
     private static final int ELEVATION_DP = 4;
@@ -84,6 +87,7 @@ public class ContentsFragment extends Fragment {
     private ArrayList<String> availableComponents = new ArrayList<>();
     private HashSet<String> installedComponents = new HashSet<>();
 
+    private ActivityResultLauncher<String[]> filePickerLauncher;
     private AlertDialog installProgressDialog;
 
     @Override
@@ -91,6 +95,11 @@ public class ContentsFragment extends Fragment {
         super.onCreate(savedInstanceState);
         baseFilesPath = requireContext().getFilesDir().getAbsolutePath();
         initDirectories();
+
+        // 注册文件选择器
+        filePickerLauncher = registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+            if (uri != null) installFromUri(uri);
+        });
     }
 
     @Override
@@ -164,6 +173,10 @@ public class ContentsFragment extends Fragment {
         root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         // === 底部按钮 ===
+        LinearLayout btnLayout = new LinearLayout(requireContext());
+        btnLayout.setOrientation(LinearLayout.HORIZONTAL);
+
+        // 刷新按钮
         Button refreshBtn = new Button(requireContext());
         refreshBtn.setText("刷新列表");
         refreshBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
@@ -173,7 +186,27 @@ public class ContentsFragment extends Fragment {
         refreshBtn.setBackground(createRoundedBackground(primaryColor, CORNER_RADIUS_DP));
         refreshBtn.setPadding(0, dpToPx(12), 0, dpToPx(12));
         refreshBtn.setOnClickListener(v -> loadAvailableComponents());
-        root.addView(refreshBtn, createLayoutParams(12));
+        LinearLayout.LayoutParams refreshLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        refreshLp.setMargins(0, 0, dpToPx(8), 0);
+        refreshBtn.setLayoutParams(refreshLp);
+        btnLayout.addView(refreshBtn);
+
+        // 手动安装按钮
+        Button installBtn = new Button(requireContext());
+        installBtn.setText("选择安装文件");
+        installBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        installBtn.setTextColor(Color.WHITE);
+        installBtn.setAllCaps(false);
+        int accentColor = getColorFromAttr(android.R.attr.colorAccent, Color.parseColor("#FF9800"), Color.parseColor("#FF9800"));
+        installBtn.setBackground(createRoundedBackground(accentColor, CORNER_RADIUS_DP));
+        installBtn.setPadding(0, dpToPx(12), 0, dpToPx(12));
+        installBtn.setOnClickListener(v -> showFilePicker());
+        LinearLayout.LayoutParams installLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        installLp.setMargins(dpToPx(8), 0, 0, 0);
+        installBtn.setLayoutParams(installLp);
+        btnLayout.addView(installBtn);
+
+        root.addView(btnLayout, createLayoutParams(12));
 
         // 加载组件列表
         loadAvailableComponents();
@@ -191,7 +224,81 @@ public class ContentsFragment extends Fragment {
                 .show();
     }
 
+    private void showFilePicker() {
+        filePickerLauncher.launch(new String[]{"*/*"});
+    }
+
+    private void installFromUri(Uri uri) {
+        showInstallProgressDialog();
+        new Thread(() -> {
+            try {
+                // 获取文件名
+                String fileName = getFileName(uri);
+                if (fileName == null || !fileName.endsWith(".tzst")) {
+                    requireActivity().runOnUiThread(() -> {
+                        dismissInstallProgressDialog();
+                        showToast("请选择 .tzst 格式文件");
+                    });
+                    return;
+                }
+
+                // 复制到目标目录
+                boolean isWine = isWineOrProton(currentCategory);
+                String storagePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
+                String installPath = isWine ? "" : currentCategory;
+                File targetDir = new File(baseFilesPath, storagePath + File.separator + installPath);
+                if (!targetDir.exists() && !targetDir.mkdirs()) {
+                    throw new Exception("目录创建失败");
+                }
+
+                File outFile = new File(targetDir, fileName);
+                try (InputStream input = requireContext().getContentResolver().openInputStream(uri);
+                     OutputStream output = new FileOutputStream(outFile)) {
+                    byte[] buffer = new byte[8192];
+                    int len;
+                    while ((len = input.read(buffer)) != -1) output.write(buffer, 0, len);
+                }
+
+                requireActivity().runOnUiThread(() -> {
+                    dismissInstallProgressDialog();
+                    showToast("✔ 安装完成");
+                    refreshInstalledStatus();
+                });
+            } catch (Exception e) {
+                requireActivity().runOnUiThread(() -> {
+                    dismissInstallProgressDialog();
+                    showToast("✘ 安装失败: " + e.getMessage());
+                });
+            }
+        }).start();
+    }
+
+    private String getFileName(Uri uri) {
+        String result = null;
+        if (uri.getScheme().equals("content")) {
+            try (Cursor cursor = requireContext().getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (index != -1) result = cursor.getString(index);
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.getPath();
+            int cut = result.lastIndexOf('/');
+            if (cut != -1) result = result.substring(cut + 1);
+        }
+        return result;
+    }
+
     private void loadAvailableComponents() {
+        // 没有在线仓库的类型，不尝试在线拉取
+        if (!ONLINE_TYPES.contains(currentCategory)) {
+            availableComponents.clear();
+            refreshInstalledStatus();
+            return;
+        }
+
         showInstallProgressDialog();
         tryLoadIndex(0);
     }
