@@ -1,0 +1,80 @@
+name: 构建并发布预发布版本
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '17'
+  NDK_VERSION: '24.0.8215888'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: false
+          fetch-depth: 1
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - name: Install NDK and CMake
+        run: |
+          sdkmanager --install "ndk;${{ env.NDK_VERSION }}" "cmake;3.22.1"
+
+      - name: Create debug keystore
+        run: |
+          keytool -genkey -v -keystore debug.keystore \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Debug, OU=Debug, O=Debug, L=Debug, ST=Debug, C=US"
+
+      - name: Build release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=$PWD/debug.keystore \
+            -Pandroid.injected.signing.store.password=android \
+            -Pandroid.injected.signing.key.alias=androiddebugkey \
+            -Pandroid.injected.signing.key.password=android
+
+      - name: Rename APK
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk Winlator-Pulse-pre-release.apk
+
+      - name: Generate release notes
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          echo "## Pre-release build" > release_notes.md
+          echo "" >> release_notes.md
+          echo "- Commit: ${SHA}" >> release_notes.md
+          echo "- Date: $(date '+%Y-%m-%d %H:%M:%S')" >> release_notes.md
+
+      - name: Upload to pre-release tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 删除旧的 pre-release release（如果存在）
+          gh release delete pre-release --yes --cleanup-tag || true
+
+          # 创建新的 pre-release release
+          gh release create pre-release \
+            Winlator-Pulse-pre-release.apk \
+            --title "Pre-release" \
+            --notes-file release_notes.md \
+            --prerelease
