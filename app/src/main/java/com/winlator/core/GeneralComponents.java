@@ -26,7 +26,9 @@ import java.util.Locale;
 public abstract class GeneralComponents {
     public enum InstallMode {DOWNLOAD, FILE, BOTH}
     private static final String COMPONENTS_INDEX_URL = "https://raw.githubusercontent.com/mihsian77/winlator-components/main/%s/index.txt";
+    private static final String COMPONENTS_INDEX_URL_JSDELIVR = "https://cdn.jsdelivr.net/gh/mihsian77/winlator-components@main/%s/index.txt";
     private static final String COMPONENTS_DOWNLOAD_URL = "https://github.com/mihsian77/winlator-components/releases/download/%s/%s";
+    private static final String COMPONENTS_DOWNLOAD_URL_GHPROXY = "https://gh-proxy.com/https://github.com/mihsian77/winlator-components/releases/download/%s/%s";
 
     public enum Type {
         BOX64, TURNIP, DXVK, VKD3D, WINED3D, SOUNDFONT, ADRENOTOOLS_DRIVER;
@@ -233,11 +235,23 @@ public abstract class GeneralComponents {
         final Activity activity = (Activity)spinner.getContext();
         File destination = new File(getComponentDir(type, activity), filename);
         if (destination.isFile()) destination.delete();
-        HttpUtils.download(activity, String.format(COMPONENTS_DOWNLOAD_URL, type.lowerName(), filename), destination, (success) -> {
+
+        // 先尝试 gh-proxy 加速，失败再回退原始 URL
+        String proxyUrl = String.format(COMPONENTS_DOWNLOAD_URL_GHPROXY, type.lowerName(), filename);
+        HttpUtils.download(activity, proxyUrl, destination, (success) -> {
             if (success) {
                 loadSpinner(type, spinner, parseDisplayText(type, filename), defaultItem);
+            } else {
+                // gh-proxy 失败，回退原始 URL
+                String originalUrl = String.format(COMPONENTS_DOWNLOAD_URL, type.lowerName(), filename);
+                HttpUtils.download(activity, originalUrl, destination, (success2) -> {
+                    if (success2) {
+                        loadSpinner(type, spinner, parseDisplayText(type, filename), defaultItem);
+                    } else {
+                        AppUtils.showToast(activity, R.string.a_network_error_occurred);
+                    }
+                });
             }
-            else AppUtils.showToast(activity, R.string.a_network_error_occurred);
         });
     }
 
@@ -337,25 +351,40 @@ public abstract class GeneralComponents {
         final Activity activity = (Activity)spinner.getContext();
         final PreloaderDialog preloaderDialog = new PreloaderDialog(activity);
         preloaderDialog.show(R.string.loading);
-        HttpUtils.download(String.format(COMPONENTS_INDEX_URL, type.lowerName()), (content) -> activity.runOnUiThread(() -> {
-            preloaderDialog.close();
-            if (content != null) {
-                if (content.isEmpty()) {
-                    AppUtils.showToast(activity, R.string.there_are_no_items_to_download);
-                    return;
-                }
-                final String[] filenames = content.split("\n");
-                final String[] items = filenames.clone();
-                for (int i = 0; i < items.length; i++) {
-                    items[i] = type.title()+" "+parseDisplayText(type, items[i]);
-                }
 
-                ContentDialog.showSelectionList(activity, R.string.install_component, items, false, (positions) -> {
-                    if (!positions.isEmpty()) downloadComponentFile(type, filenames[positions.get(0)], spinner, defaultItem);
-                });
+        // 先尝试 jsDelivr 加速，失败再回退原始 URL
+        String jsdelivrUrl = String.format(COMPONENTS_INDEX_URL_JSDELIVR, type.lowerName());
+        HttpUtils.download(jsdelivrUrl, (content) -> {
+            if (content == null) {
+                // jsDelivr 失败，回退原始 URL
+                String originalUrl = String.format(COMPONENTS_INDEX_URL, type.lowerName());
+                HttpUtils.download(originalUrl, (content2) -> activity.runOnUiThread(() -> {
+                    handleIndexResult(activity, preloaderDialog, type, spinner, defaultItem, content2);
+                }));
+            } else {
+                handleIndexResult(activity, preloaderDialog, type, spinner, defaultItem, content);
             }
-            else AppUtils.showToast(activity, R.string.a_network_error_occurred);
-        }));
+        });
+    }
+
+    private static void handleIndexResult(Activity activity, PreloaderDialog preloaderDialog, Type type, Spinner spinner, String defaultItem, String content) {
+        preloaderDialog.close();
+        if (content != null) {
+            if (content.isEmpty()) {
+                AppUtils.showToast(activity, R.string.there_are_no_items_to_download);
+                return;
+            }
+            final String[] filenames = content.split("\n");
+            final String[] items = filenames.clone();
+            for (int i = 0; i < items.length; i++) {
+                items[i] = type.title()+" "+parseDisplayText(type, items[i]);
+            }
+
+            ContentDialog.showSelectionList(activity, R.string.install_component, items, false, (positions) -> {
+                if (!positions.isEmpty()) downloadComponentFile(type, filenames[positions.get(0)], spinner, defaultItem);
+            });
+        }
+        else AppUtils.showToast(activity, R.string.a_network_error_occurred);
     }
 
     public static void initViews(final Type type, View toolbox, final Spinner spinner, final String selectedItem, final String defaultItem) {
