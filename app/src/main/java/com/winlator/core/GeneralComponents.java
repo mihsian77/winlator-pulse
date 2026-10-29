@@ -41,7 +41,7 @@ public abstract class GeneralComponents {
     };
 
     public enum Type {
-        BOX64, TURNIP, DXVK, VKD3D, WINED3D, SOUNDFONT, ADRENOTOOLS_DRIVER;
+        BOX64, TURNIP, DXVK, VKD3D, WINED3D, SOUNDFONT, ADRENOTOOLS_DRIVER, D7VK, D8VK, VIRGL;
 
         private String lowerName() {
             return name().toLowerCase(Locale.ENGLISH);
@@ -63,6 +63,12 @@ public abstract class GeneralComponents {
                     return "SoundFont";
                 case ADRENOTOOLS_DRIVER:
                     return "Adrenotools Driver";
+                case D7VK:
+                    return "D7VK";
+                case D8VK:
+                    return "D8VK";
+                case VIRGL:
+                    return "VirGL";
             }
 
             return "";
@@ -73,10 +79,13 @@ public abstract class GeneralComponents {
                 case BOX64:
                     return "box64";
                 case TURNIP:
+                case VIRGL:
                     return "graphics_driver";
                 case WINED3D:
                 case DXVK:
                 case VKD3D:
+                case D7VK:
+                case D8VK:
                     return "dxwrapper";
                 case SOUNDFONT:
                     return "soundfont";
@@ -103,6 +112,8 @@ public abstract class GeneralComponents {
                 case DXVK:
                 case VKD3D:
                 case WINED3D:
+                case D7VK:
+                case D8VK:
                     return new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows");
                 case SOUNDFONT:
                     File destination = new File(context.getCacheDir(), "soundfont");
@@ -118,7 +129,7 @@ public abstract class GeneralComponents {
             if (this == Type.SOUNDFONT || this == ADRENOTOOLS_DRIVER) {
                 installMode = InstallMode.FILE;
             }
-            else if (this == Type.WINED3D || this == Type.DXVK || this == Type.VKD3D) {
+            else if (this == Type.WINED3D || this == Type.DXVK || this == Type.VKD3D || this == Type.D7VK || this == Type.D8VK) {
                 installMode = InstallMode.BOTH;
             }
             else installMode = InstallMode.DOWNLOAD;
@@ -126,7 +137,7 @@ public abstract class GeneralComponents {
         }
 
         private boolean isVersioned() {
-            return this == BOX64 || this == TURNIP || this == DXVK || this == VKD3D || this == WINED3D;
+            return this == BOX64 || this == TURNIP || this == DXVK || this == VKD3D || this == WINED3D || this == D7VK || this == D8VK || this == VIRGL;
         }
     }
 
