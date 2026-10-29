@@ -1,7 +1,5 @@
 package com.winlator.contents;
 
-import android.app.Activity;
-import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -10,8 +8,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
-import android.text.TextUtils;
-import android.util.Log;
 import android.util.TypedValue;
 import android.content.res.TypedArray;
 import android.view.Gravity;
@@ -37,12 +33,10 @@ import androidx.fragment.app.Fragment;
 import com.winlator.core.HttpUtils;
 import com.winlator.core.TarCompressorUtils;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -50,7 +44,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 public class ContentsFragment extends Fragment {
-    private static final String[] FILE_TYPES = {"dxvk", "vkd3d", "box64", "turnip", "wined3d", "wine", "proton"};
+    private static final String[] FILE_TYPES = {"dxvk", "vkd3d", "box64", "turnip", "wined3d", "virgl", "wine", "proton"};
 
     // 有在线仓库的组件类型（可以在线下载）
     private static final java.util.Set<String> ONLINE_TYPES = new java.util.HashSet<>(java.util.Arrays.asList("dxvk", "vkd3d", "box64", "turnip", "wined3d"));
@@ -234,15 +228,24 @@ public class ContentsFragment extends Fragment {
             try {
                 // 获取文件名
                 String fileName = getFileName(uri);
-                if (fileName == null || !fileName.endsWith(".tzst")) {
+                if (fileName == null) {
                     requireActivity().runOnUiThread(() -> {
                         dismissInstallProgressDialog();
-                        showToast("请选择 .tzst 格式文件");
+                        showToast("无效文件选择");
                     });
                     return;
                 }
 
-                // 复制到目标目录
+                // 支持 .whp 和 .tzst 两种格式
+                String lowerName = fileName.toLowerCase();
+                if (!lowerName.endsWith(".whp") && !lowerName.endsWith(".tzst")) {
+                    requireActivity().runOnUiThread(() -> {
+                        dismissInstallProgressDialog();
+                        showToast("请选择 .whp 或 .tzst 格式文件");
+                    });
+                    return;
+                }
+
                 boolean isWine = isWineOrProton(currentCategory);
                 String storagePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
                 String installPath = isWine ? "" : currentCategory;
@@ -251,12 +254,23 @@ public class ContentsFragment extends Fragment {
                     throw new Exception("目录创建失败");
                 }
 
-                File outFile = new File(targetDir, fileName);
-                try (InputStream input = requireContext().getContentResolver().openInputStream(uri);
-                     OutputStream output = new FileOutputStream(outFile)) {
-                    byte[] buffer = new byte[8192];
-                    int len;
-                    while ((len = input.read(buffer)) != -1) output.write(buffer, 0, len);
+                if (isWine) {
+                    // wine/proton：直接解压安装
+                    TarCompressorUtils.Type type = detectCompressionType(uri);
+                    if (type == null) throw new Exception("不支持的文件格式，请提供 XZ 或 ZSTD 压缩的 Wine/Proton 包");
+                    if (!TarCompressorUtils.extract(type, requireContext(), uri, targetDir, null)) {
+                        throw new Exception("解压失败");
+                    }
+                } else {
+                    // 其他组件：把 .whp 文件重命名为 .tzst 存放
+                    String baseName = fileName.replaceAll("(?i)\\.whp$", "").replaceAll("(?i)\\.tzst$", "");
+                    File outFile = new File(targetDir, baseName + ".tzst");
+                    try (InputStream input = requireContext().getContentResolver().openInputStream(uri);
+                         OutputStream output = new FileOutputStream(outFile)) {
+                        byte[] buffer = new byte[8192];
+                        int len;
+                        while ((len = input.read(buffer)) != -1) output.write(buffer, 0, len);
+                    }
                 }
 
                 requireActivity().runOnUiThread(() -> {
@@ -271,6 +285,25 @@ public class ContentsFragment extends Fragment {
                 });
             }
         }).start();
+    }
+
+    private TarCompressorUtils.Type detectCompressionType(Uri uri) throws IOException {
+        byte[] magic = new byte[6];
+        try (InputStream is = requireContext().getContentResolver().openInputStream(uri)) {
+            if (is == null || is.read(magic) < 4) return null;
+            // XZ magic: FD 37 7A 58 5A 00
+            if ((magic[0] & 0xFF) == 0xFD && (magic[1] & 0xFF) == 0x37 &&
+                (magic[2] & 0xFF) == 0x7A && (magic[3] & 0xFF) == 0x58 &&
+                (magic[4] & 0xFF) == 0x5A && (magic[5] & 0xFF) == 0x00) {
+                return TarCompressorUtils.Type.XZ;
+            }
+            // ZSTD magic: 28 B5 2F FD
+            if ((magic[0] & 0xFF) == 0x28 && (magic[1] & 0xFF) == 0xB5 &&
+                (magic[2] & 0xFF) == 0x2F && (magic[3] & 0xFF) == 0xFD) {
+                return TarCompressorUtils.Type.ZSTD;
+            }
+            return null;
+        }
     }
 
     private String getFileName(Uri uri) {
