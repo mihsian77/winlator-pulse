@@ -55,10 +55,22 @@ public class ContentsFragment extends Fragment {
     private static final int CORNER_RADIUS_DP = 12;
     private static final int ELEVATION_DP = 4;
 
-    private static final String COMPONENTS_INDEX_URL = "https://raw.githubusercontent.com/mihsian77/winlator-components/main/%s/index.txt";
-    private static final String COMPONENTS_INDEX_URL_JSDELIVR = "https://cdn.jsdelivr.net/gh/mihsian77/winlator-components@main/%s/index.txt";
-    private static final String COMPONENTS_DOWNLOAD_URL = "https://github.com/mihsian77/winlator-components/releases/download/%s/%s";
-    private static final String COMPONENTS_DOWNLOAD_URL_GHPROXY = "https://gh-proxy.com/https://github.com/mihsian77/winlator-components/releases/download/%s/%s";
+    // 加速节点列表（按 MirrorHub 延迟排序）
+    // raw 文件用 jsDelivr CDN 加速
+    private static final String[] INDEX_URL_TEMPLATES = {
+        "https://cdn.jsdelivr.net/gh/mihsian77/winlator-components@main/%s/index.txt",
+        "https://fastly.jsdelivr.net/gh/mihsian77/winlator-components@main/%s/index.txt",
+        "https://gcore.jsdelivr.net/gh/mihsian77/winlator-components@main/%s/index.txt",
+        "https://raw.githubusercontent.com/mihsian77/winlator-components/main/%s/index.txt"
+    };
+
+    // release 文件用通用代理加速
+    private static final String[] DOWNLOAD_URL_TEMPLATES = {
+        "https://gh-proxy.com/https://github.com/mihsian77/winlator-components/releases/download/%s/%s",
+        "https://ghfast.top/https://github.com/mihsian77/winlator-components/releases/download/%s/%s",
+        "https://ghproxy.net/https://github.com/mihsian77/winlator-components/releases/download/%s/%s",
+        "https://github.com/mihsian77/winlator-components/releases/download/%s/%s"
+    };
 
     private static boolean isWineOrProton(String category) {
         return category.equalsIgnoreCase("wine") || category.equalsIgnoreCase("proton");
@@ -181,17 +193,26 @@ public class ContentsFragment extends Fragment {
 
     private void loadAvailableComponents() {
         showInstallProgressDialog();
-        // 先尝试 jsDelivr 加速，失败再回退原始 URL
-        String jsdelivrUrl = String.format(COMPONENTS_INDEX_URL_JSDELIVR, currentCategory);
-        HttpUtils.download(jsdelivrUrl, (content) -> {
-            if (content == null) {
-                // jsDelivr 失败，回退原始 URL
-                String originalUrl = String.format(COMPONENTS_INDEX_URL, currentCategory);
-                HttpUtils.download(originalUrl, (content2) -> requireActivity().runOnUiThread(() -> {
-                    handleIndexResult(content2);
-                }));
-            } else {
+        tryLoadIndex(0);
+    }
+
+    private void tryLoadIndex(int index) {
+        if (index >= INDEX_URL_TEMPLATES.length) {
+            // 所有节点都失败
+            requireActivity().runOnUiThread(() -> {
+                dismissInstallProgressDialog();
+                showToast("网络错误，请检查网络连接");
+            });
+            return;
+        }
+
+        String url = String.format(INDEX_URL_TEMPLATES[index], currentCategory);
+        HttpUtils.download(url, (content) -> {
+            if (content != null) {
                 handleIndexResult(content);
+            } else {
+                // 当前节点失败，尝试下一个
+                tryLoadIndex(index + 1);
             }
         });
     }
@@ -351,14 +372,20 @@ public class ContentsFragment extends Fragment {
         String baseName = filename.replace(TZSD_EXTENSION, "");
         File outFile = new File(targetDir, baseName + TZSD_EXTENSION);
 
-        // 先尝试 gh-proxy 加速，失败再回退原始 URL
-        String proxyUrl = String.format(COMPONENTS_DOWNLOAD_URL_GHPROXY, currentCategory, filename);
-        String originalUrl = String.format(COMPONENTS_DOWNLOAD_URL, currentCategory, filename);
-
-        tryDownload(proxyUrl, outFile);
-        if (!outFile.exists() || outFile.length() == 0) {
-            tryDownload(originalUrl, outFile);
+        // 依次尝试多个加速节点
+        for (String template : DOWNLOAD_URL_TEMPLATES) {
+            String url = String.format(template, currentCategory, filename);
+            try {
+                tryDownload(url, outFile);
+                if (outFile.exists() && outFile.length() > 0) {
+                    return; // 下载成功
+                }
+            } catch (Exception e) {
+                // 当前节点失败，尝试下一个
+            }
         }
+
+        throw new Exception("所有节点都下载失败");
     }
 
     private void tryDownload(String url, File outFile) throws Exception {
