@@ -17,6 +17,8 @@ public abstract class HttpUtils {
     private static void downloadAsync(String url, Callback<String> onDownloadComplete) {
         try {
             HttpURLConnection connection = (HttpURLConnection)(new URL(url)).openConnection();
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(30000);
             if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
                 onDownloadComplete.call(null);
                 return;
@@ -41,6 +43,8 @@ public abstract class HttpUtils {
         try {
             interruptRef.set(false);
             HttpURLConnection connection = (HttpURLConnection)(new URL(url)).openConnection();
+            connection.setConnectTimeout(10000);
+            connection.setReadTimeout(60000);
             if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
                 onDownloadComplete.call(false);
                 return;
