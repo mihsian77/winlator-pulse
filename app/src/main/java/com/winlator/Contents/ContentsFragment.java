@@ -388,24 +388,35 @@ public class ContentsFragment extends Fragment {
         item.setGravity(Gravity.CENTER_VERTICAL);
         int cardBgColor = getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#FFFFFF"), Color.parseColor("#1E1E1E"));
         item.setBackground(createRoundedBackground(cardBgColor, CORNER_RADIUS_DP));
-        item.setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12));
+        item.setPadding(dpToPx(16), dpToPx(14), dpToPx(16), dpToPx(14));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             item.setElevation(dpToPx(ELEVATION_DP / 2));
         }
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(0, 0, 0, dpToPx(8));
+        lp.setMargins(0, 0, 0, dpToPx(10));
         item.setLayoutParams(lp);
 
-        // 左边：组件名 + 状态
-        LinearLayout leftLayout = new LinearLayout(requireContext());
-        leftLayout.setOrientation(LinearLayout.VERTICAL);
-        leftLayout.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        // 左边：文件图标
+        ImageView icon = new ImageView(requireContext());
+        icon.setImageResource(android.R.drawable.ic_menu_save);
+        icon.setColorFilter(getColorFromAttr(android.R.attr.colorPrimary, Color.parseColor("#2196F3"), Color.parseColor("#64B5F6")));
+        icon.setPadding(dpToPx(4), dpToPx(4), dpToPx(12), dpToPx(4));
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dpToPx(36), dpToPx(36));
+        iconLp.setMargins(0, 0, dpToPx(8), 0);
+        icon.setLayoutParams(iconLp);
+        item.addView(icon);
+
+        // 中间：组件名 + 状态标签
+        LinearLayout middleLayout = new LinearLayout(requireContext());
+        middleLayout.setOrientation(LinearLayout.VERTICAL);
+        middleLayout.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
         TextView tv = new TextView(requireContext());
         tv.setText(name);
         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        leftLayout.addView(tv);
+        tv.setTypeface(Typeface.DEFAULT_BOLD);
+        middleLayout.addView(tv);
 
         TextView statusTv = new TextView(requireContext());
         if (installed) {
@@ -413,27 +424,35 @@ public class ContentsFragment extends Fragment {
             statusTv.setTextColor(Color.parseColor("#4CAF50"));
         } else {
             statusTv.setText("⬇️ 可下载");
-            statusTv.setTextColor(Color.parseColor("#2196F3"));
+            statusTv.setTextColor(Color.parseColor("#9E9E9E"));
         }
         statusTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         statusTv.setPadding(0, dpToPx(2), 0, 0);
-        leftLayout.addView(statusTv);
+        middleLayout.addView(statusTv);
 
-        item.addView(leftLayout);
+        item.addView(middleLayout);
 
-        // 右边：操作按钮
+        // 右边：圆角按钮
         if (installed) {
-            ImageView deleteBtn = new ImageView(requireContext());
-            deleteBtn.setImageResource(android.R.drawable.ic_menu_delete);
-            deleteBtn.setColorFilter(Color.parseColor("#F44336"));
-            deleteBtn.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
+            Button deleteBtn = new Button(requireContext());
+            deleteBtn.setText("删除");
+            deleteBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            deleteBtn.setTextColor(Color.WHITE);
+            deleteBtn.setAllCaps(false);
+            int deleteColor = Color.parseColor("#F44336");
+            deleteBtn.setBackground(createRoundedBackground(deleteColor, dpToPx(20)));
+            deleteBtn.setPadding(dpToPx(16), dpToPx(6), dpToPx(16), dpToPx(6));
             deleteBtn.setOnClickListener(v -> showDeleteDialog(name));
             item.addView(deleteBtn);
         } else {
-            ImageView downloadBtn = new ImageView(requireContext());
-            downloadBtn.setImageResource(android.R.drawable.stat_sys_download);
-            downloadBtn.setColorFilter(Color.parseColor("#2196F3"));
-            downloadBtn.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
+            Button downloadBtn = new Button(requireContext());
+            downloadBtn.setText("下载");
+            downloadBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            downloadBtn.setTextColor(Color.WHITE);
+            downloadBtn.setAllCaps(false);
+            int downloadColor = getColorFromAttr(android.R.attr.colorPrimary, Color.parseColor("#2196F3"), Color.parseColor("#1976D2"));
+            downloadBtn.setBackground(createRoundedBackground(downloadColor, dpToPx(20)));
+            downloadBtn.setPadding(dpToPx(16), dpToPx(6), dpToPx(16), dpToPx(6));
             downloadBtn.setOnClickListener(v -> showInstallDialog(filename));
             item.addView(downloadBtn);
         }
