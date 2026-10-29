@@ -56,7 +56,9 @@ public class ContentsFragment extends Fragment {
     private static final int ELEVATION_DP = 4;
 
     private static final String COMPONENTS_INDEX_URL = "https://raw.githubusercontent.com/mihsian77/winlator-components/main/%s/index.txt";
+    private static final String COMPONENTS_INDEX_URL_JSDELIVR = "https://cdn.jsdelivr.net/gh/mihsian77/winlator-components@main/%s/index.txt";
     private static final String COMPONENTS_DOWNLOAD_URL = "https://github.com/mihsian77/winlator-components/releases/download/%s/%s";
+    private static final String COMPONENTS_DOWNLOAD_URL_GHPROXY = "https://gh-proxy.com/https://github.com/mihsian77/winlator-components/releases/download/%s/%s";
 
     private static boolean isWineOrProton(String category) {
         return category.equalsIgnoreCase("wine") || category.equalsIgnoreCase("proton");
@@ -179,8 +181,23 @@ public class ContentsFragment extends Fragment {
 
     private void loadAvailableComponents() {
         showInstallProgressDialog();
-        String url = String.format(COMPONENTS_INDEX_URL, currentCategory);
-        HttpUtils.download(url, (content) -> requireActivity().runOnUiThread(() -> {
+        // 先尝试 jsDelivr 加速，失败再回退原始 URL
+        String jsdelivrUrl = String.format(COMPONENTS_INDEX_URL_JSDELIVR, currentCategory);
+        HttpUtils.download(jsdelivrUrl, (content) -> {
+            if (content == null) {
+                // jsDelivr 失败，回退原始 URL
+                String originalUrl = String.format(COMPONENTS_INDEX_URL, currentCategory);
+                HttpUtils.download(originalUrl, (content2) -> requireActivity().runOnUiThread(() -> {
+                    handleIndexResult(content2);
+                }));
+            } else {
+                handleIndexResult(content);
+            }
+        });
+    }
+
+    private void handleIndexResult(String content) {
+        requireActivity().runOnUiThread(() -> {
             dismissInstallProgressDialog();
             availableComponents.clear();
             if (content != null && !content.isEmpty()) {
@@ -190,7 +207,7 @@ public class ContentsFragment extends Fragment {
                 }
             }
             refreshInstalledStatus();
-        }));
+        });
     }
 
     private void refreshInstalledStatus() {
@@ -323,7 +340,6 @@ public class ContentsFragment extends Fragment {
     }
 
     private void downloadAndInstall(String filename) throws Exception {
-        String url = String.format(COMPONENTS_DOWNLOAD_URL, currentCategory, filename);
         boolean isWine = isWineOrProton(currentCategory);
         String storagePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
         String installPath = isWine ? "" : currentCategory;
@@ -335,9 +351,28 @@ public class ContentsFragment extends Fragment {
         String baseName = filename.replace(TZSD_EXTENSION, "");
         File outFile = new File(targetDir, baseName + TZSD_EXTENSION);
 
-        // 下载文件
+        // 先尝试 gh-proxy 加速，失败再回退原始 URL
+        String proxyUrl = String.format(COMPONENTS_DOWNLOAD_URL_GHPROXY, currentCategory, filename);
+        String originalUrl = String.format(COMPONENTS_DOWNLOAD_URL, currentCategory, filename);
+
+        tryDownload(proxyUrl, outFile);
+        if (!outFile.exists() || outFile.length() == 0) {
+            tryDownload(originalUrl, outFile);
+        }
+    }
+
+    private void tryDownload(String url, File outFile) throws Exception {
         java.net.URL downloadUrl = new java.net.URL(url);
-        try (InputStream input = downloadUrl.openStream();
+        java.net.HttpURLConnection conn = (java.net.HttpURLConnection) downloadUrl.openConnection();
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(60000);
+        conn.setInstanceFollowRedirects(true);
+
+        if (conn.getResponseCode() != java.net.HttpURLConnection.HTTP_OK) {
+            return;
+        }
+
+        try (InputStream input = conn.getInputStream();
              OutputStream output = new FileOutputStream(outFile)) {
             byte[] buffer = new byte[8192];
             int len;
