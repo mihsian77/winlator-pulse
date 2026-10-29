@@ -6,6 +6,7 @@ import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.VectorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -21,6 +22,8 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -32,10 +35,12 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;      // 使用 AppCompat 版本支持深色模式
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
+import com.winlator.R;
 import com.winlator.core.TarCompressorUtils;
 
 import java.io.File;
@@ -48,7 +53,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 
 public class ContentsFragment extends Fragment {
-    private static final String[] FILE_TYPES = {"dxvk", "box64", "turnip", "virgl", "vkd3d", "wine", "proton"};
+    private static final String[] FILE_TYPES = {"dxvk", "vkd3d", "box64", "turnip", "wined3d", "wine", "proton"};
     private static final String WHP_EXTENSION = ".whp";
     private static final String TZSD_EXTENSION = ".tzst";
     private static final int CORNER_RADIUS_DP = 12;
@@ -63,7 +68,7 @@ public class ContentsFragment extends Fragment {
     private String currentInstallPath = "";
 
     private LinearLayout fileListContainer;
-    private Spinner categorySpinner;
+    private LinearLayout tabLayout;
     private String currentCategory = FILE_TYPES[0];
     private String installCategory;
     private Uri selectedFileUri;
@@ -137,43 +142,27 @@ public class ContentsFragment extends Fragment {
         int padding = dpToPx(16);
         root.setPadding(padding, padding, padding, padding);
 
-        TextView title = new TextView(requireContext());
-        title.setText("选择附加类型");
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setPadding(0, 0, 0, dpToPx(12));
-        root.addView(title);
+        // === 横向标签栏（替代 Spinner） ===
+        HorizontalScrollView tabScroll = new HorizontalScrollView(requireContext());
+        tabScroll.setHorizontalScrollBarEnabled(false);
+        tabLayout = new LinearLayout(requireContext());
+        tabLayout.setOrientation(LinearLayout.HORIZONTAL);
+        tabScroll.addView(tabLayout);
+        root.addView(tabScroll, createLayoutParams(12));
 
-        categorySpinner = new Spinner(requireContext());
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_dropdown_item, FILE_TYPES);
-        categorySpinner.setAdapter(adapter);
-        int cardBgColor = getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#FFFFFF"), Color.parseColor("#121212"));
-        categorySpinner.setBackground(createRoundedBackground(cardBgColor, CORNER_RADIUS_DP));
-        categorySpinner.setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12));
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            categorySpinner.setElevation(dpToPx(ELEVATION_DP));
+        // 创建标签按钮
+        for (int i = 0; i < FILE_TYPES.length; i++) {
+            createTab(FILE_TYPES[i], i == 0);
         }
-        categorySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                currentCategory = FILE_TYPES[position];
-                refreshFileList();
-            }
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
-        root.addView(categorySpinner, createLayoutParams(16));
-
-        // 滚动列表
+        // === 滚动列表 ===
         ScrollView scroll = new ScrollView(requireContext());
         fileListContainer = new LinearLayout(requireContext());
         fileListContainer.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(fileListContainer);
         root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
-        // 安装按钮
+        // === 安装按钮 ===
         Button installBtn = new Button(requireContext());
         installBtn.setText("选择安装文件");
         installBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
@@ -192,6 +181,56 @@ public class ContentsFragment extends Fragment {
 
         refreshFileList();
         return root;
+    }
+
+    private void createTab(String name, boolean selected) {
+        TextView tab = new TextView(requireContext());
+        tab.setText(name);
+        tab.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        tab.setGravity(Gravity.CENTER);
+        tab.setPadding(dpToPx(16), dpToPx(10), dpToPx(16), dpToPx(10));
+
+        int cardBgColor = getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#FFFFFF"), Color.parseColor("#1E1E1E"));
+        int primaryColor = getColorFromAttr(android.R.attr.colorPrimary, Color.parseColor("#2196F3"), Color.parseColor("#2196F3"));
+
+        if (selected) {
+            tab.setTextColor(Color.WHITE);
+            tab.setBackground(createRoundedBackground(primaryColor, CORNER_RADIUS_DP));
+            tab.setTypeface(Typeface.DEFAULT_BOLD);
+        } else {
+            tab.setTextColor(getColorFromAttr(android.R.attr.textColor, Color.parseColor("#666666"), Color.parseColor("#AAAAAA")));
+            tab.setBackground(createRoundedBackground(cardBgColor, CORNER_RADIUS_DP));
+        }
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 0, dpToPx(8), 0);
+        tab.setLayoutParams(lp);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            tab.setElevation(dpToPx(ELEVATION_DP / 2));
+        }
+
+        tab.setOnClickListener(v -> {
+            currentCategory = name;
+            refreshFileList();
+            // 更新标签选中状态
+            for (int i = 0; i < tabLayout.getChildCount(); i++) {
+                TextView t = (TextView) tabLayout.getChildAt(i);
+                boolean isSelected = t.getText().toString().equals(name);
+                if (isSelected) {
+                    t.setTextColor(Color.WHITE);
+                    t.setBackground(createRoundedBackground(primaryColor, CORNER_RADIUS_DP));
+                    t.setTypeface(Typeface.DEFAULT_BOLD);
+                } else {
+                    t.setTextColor(getColorFromAttr(android.R.attr.textColor, Color.parseColor("#666666"), Color.parseColor("#AAAAAA")));
+                    t.setBackground(createRoundedBackground(cardBgColor, CORNER_RADIUS_DP));
+                    t.setTypeface(Typeface.DEFAULT);
+                }
+            }
+        });
+
+        tabLayout.addView(tab);
     }
 
     private int getColorFromAttr(int attr, int lightDefault, int darkDefault) {
@@ -251,8 +290,6 @@ public class ContentsFragment extends Fragment {
                                 dismissInstallProgressDialog();
                                 showToast("✔ 安装完成");
                                 currentCategory = installCategory;
-                                int pos = Arrays.asList(FILE_TYPES).indexOf(currentCategory);
-                                if (pos >= 0) categorySpinner.setSelection(pos);
                                 refreshFileList();
                             });
                         } catch (Exception e) {
@@ -411,12 +448,12 @@ public class ContentsFragment extends Fragment {
         for (File f : files) {
             if (isWine) {
                 if (f.isDirectory()) {
-                    addFileEntry(f.getName());
+                    addFileEntry(f.getName(), f.length());
                     hasEntries = true;
                 }
             } else {
                 String name = f.isFile() ? f.getName().replace(TZSD_EXTENSION, "") : f.getName();
-                addFileEntry(name);
+                addFileEntry(name, f.length());
                 hasEntries = true;
             }
         }
@@ -432,10 +469,11 @@ public class ContentsFragment extends Fragment {
         fileListContainer.addView(empty);
     }
 
-    private void addFileEntry(String name) {
+    private void addFileEntry(String name, long size) {
         LinearLayout item = new LinearLayout(requireContext());
         item.setOrientation(LinearLayout.HORIZONTAL);
-        int cardBgColor = getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#FFFFFF"), Color.parseColor("#121212"));
+        item.setGravity(Gravity.CENTER_VERTICAL);
+        int cardBgColor = getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#FFFFFF"), Color.parseColor("#1E1E1E"));
         item.setBackground(createRoundedBackground(cardBgColor, CORNER_RADIUS_DP));
         item.setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -446,17 +484,42 @@ public class ContentsFragment extends Fragment {
         lp.setMargins(0, 0, 0, dpToPx(8));
         item.setLayoutParams(lp);
 
+        // 左边：勾选图标 + 组件名 + 大小
+        LinearLayout leftLayout = new LinearLayout(requireContext());
+        leftLayout.setOrientation(LinearLayout.VERTICAL);
+        leftLayout.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
         TextView tv = new TextView(requireContext());
         tv.setText(name);
         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        tv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        item.addView(tv);
+        leftLayout.addView(tv);
 
-        item.setOnLongClickListener(v -> {
-            showDeleteDialog(name);
-            return true;
-        });
+        if (size > 0) {
+            TextView sizeTv = new TextView(requireContext());
+            sizeTv.setText(formatSize(size));
+            sizeTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            sizeTv.setTextColor(getColorFromAttr(android.R.attr.textColorSecondary, Color.parseColor("#888888"), Color.parseColor("#888888")));
+            sizeTv.setPadding(0, dpToPx(2), 0, 0);
+            leftLayout.addView(sizeTv);
+        }
+
+        item.addView(leftLayout);
+
+        // 右边：删除图标按钮
+        ImageView deleteBtn = new ImageView(requireContext());
+        deleteBtn.setImageResource(android.R.drawable.ic_menu_delete);
+        deleteBtn.setColorFilter(Color.parseColor("#F44336"));
+        deleteBtn.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
+        deleteBtn.setOnClickListener(v -> showDeleteDialog(name));
+        item.addView(deleteBtn);
+
         fileListContainer.addView(item);
+    }
+
+    private String formatSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        return String.format("%.1f MB", bytes / 1024.0 / 1024.0);
     }
 
     private void showDeleteDialog(String name) {
