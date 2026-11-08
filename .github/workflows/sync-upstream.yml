@@ -84,16 +84,18 @@ jobs:
 
           UPSTREAM_MSG=$(git log --oneline upstream/main -5)
           cat > /tmp/pr-body.md << EOF
-## 自动合并 hostei33/winlator-cn 上游
+          ## 自动合并 hostei33/winlator-cn 上游
 
-上游有新提交但与本仓库改动有冲突，需要人工解决。
+          上游有新提交但与本仓库改动有冲突，需要人工解决。
 
-### 上游最近提交
+          ### 上游最近提交
 
-\`\`\`
-$UPSTREAM_MSG
-\`\`\`
-EOF
+          \`\`\`
+          $UPSTREAM_MSG
+          \`\`\`
+          EOF
+          # heredoc 内容为了满足 YAML 缩进带了前导空格，写出的 markdown 需要去掉
+          sed -i 's/^[[:space:]]*//' /tmp/pr-body.md
 
           EXIST=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>&1)
           if echo "$EXIST" | grep -qE '^[0-9]+$'; then
