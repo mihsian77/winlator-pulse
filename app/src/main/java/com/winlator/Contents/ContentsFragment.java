@@ -45,10 +45,10 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 public class ContentsFragment extends Fragment {
-    private static final String[] FILE_TYPES = {"dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk", "virgl", "wine", "proton"};
+    private static final String[] FILE_TYPES = {"dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk", "virgl", "wine", "proton", "dxvk-nightly", "vkd3d-nightly"};
 
     // 有在线仓库的组件类型（可以在线下载）
-    private static final java.util.Set<String> ONLINE_TYPES = new java.util.HashSet<>(java.util.Arrays.asList("dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk"));
+    private static final java.util.Set<String> ONLINE_TYPES = new java.util.HashSet<>(java.util.Arrays.asList("dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk", "dxvk-nightly", "vkd3d-nightly"));
     private static final String TZSD_EXTENSION = ".tzst";
     private static final int CORNER_RADIUS_DP = 12;
     private static final int ELEVATION_DP = 4;
@@ -72,6 +72,14 @@ public class ContentsFragment extends Fragment {
 
     private static boolean isWineOrProton(String category) {
         return category.equalsIgnoreCase("wine") || category.equalsIgnoreCase("proton");
+    }
+
+    // nightly 是 dxvk/vkd3d 的每日构建，必须装进稳定版目录才会出现在版本列表里
+    private static String resolveInstallDir(String category) {
+        if (isWineOrProton(category)) return "";
+        if (category.equalsIgnoreCase("dxvk-nightly")) return "dxvk";
+        if (category.equalsIgnoreCase("vkd3d-nightly")) return "vkd3d";
+        return category;
     }
 
     private String baseFilesPath;
@@ -293,7 +301,7 @@ public class ContentsFragment extends Fragment {
 
                 boolean isWine = isWineOrProton(currentCategory);
                 String storagePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
-                String installPath = isWine ? "" : currentCategory;
+                String installPath = resolveInstallDir(currentCategory);
                 File targetDir = new File(baseFilesPath, storagePath + File.separator + installPath);
                 if (!targetDir.exists() && !targetDir.mkdirs()) {
                     throw new Exception("目录创建失败");
@@ -425,7 +433,7 @@ public class ContentsFragment extends Fragment {
         installedComponents.clear();
         boolean isWine = isWineOrProton(currentCategory);
         String storagePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
-        String installPath = isWine ? "" : currentCategory;
+        String installPath = resolveInstallDir(currentCategory);
 
         File dir = new File(baseFilesPath, storagePath + File.separator + installPath);
         if (dir.exists() && dir.isDirectory()) {
@@ -594,7 +602,7 @@ public class ContentsFragment extends Fragment {
     private void downloadAndInstall(String filename) throws Exception {
         boolean isWine = isWineOrProton(currentCategory);
         String storagePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
-        String installPath = isWine ? "" : currentCategory;
+        String installPath = resolveInstallDir(currentCategory);
         File targetDir = new File(baseFilesPath, storagePath + File.separator + installPath);
         if (!targetDir.exists() && !targetDir.mkdirs()) {
             throw new Exception("目录创建失败");
@@ -650,7 +658,7 @@ public class ContentsFragment extends Fragment {
     private void deleteFile(String name) {
         boolean isWine = isWineOrProton(currentCategory);
         String storagePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
-        String installPath = isWine ? "" : currentCategory;
+        String installPath = resolveInstallDir(currentCategory);
         File target = new File(baseFilesPath, storagePath + File.separator + installPath + File.separator + name);
 
         boolean success;
