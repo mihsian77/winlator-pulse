@@ -102,7 +102,19 @@ public abstract class GeneralComponents {
                 case ADRENOTOOLS_DRIVER:
                     return new File(componentDir, identifier);
                 default:
-                    return new File(componentDir, lowerName()+"-"+identifier+".tzst");
+                    File expected = new File(componentDir, lowerName()+"-"+identifier+".tzst");
+                    if (expected.isFile()) return expected;
+                    // 仓库中部分资产命名不规范（如 WineD3D-11.6.tzst、VKD3D-RE-FIX.tzst），
+                    // 按实际落地文件名做不区分大小写的兜底匹配，否则会静默回退到内置版本
+                    String id = identifier.toLowerCase(Locale.ENGLISH);
+                    String[] candidates = componentDir.list((dir, name) -> {
+                        String lower = name.toLowerCase(Locale.ENGLISH);
+                        if (!lower.endsWith(".tzst")) return false;
+                        String base = lower.substring(0, lower.length() - 5);
+                        return base.equals(id) || base.endsWith("-"+id);
+                    });
+                    if (candidates != null && candidates.length == 1) return new File(componentDir, candidates[0]);
+                    return expected;
             }
         }
 
@@ -249,7 +261,11 @@ public abstract class GeneralComponents {
     }
 
     private static String parseDisplayText(Type type, String filename) {
-        return filename.replace(type.lowerName()+"-", "").replace(".tzst", "").replace(".sf2", "");
+        String name = filename.replace(".tzst", "").replace(".sf2", "");
+        String prefix = type.lowerName()+"-";
+        // 不区分大小写剥离类型前缀，兼容仓库中 WineD3D-11.6.tzst / VKD3D-RE-FIX.tzst 这类命名
+        if (name.toLowerCase(Locale.ENGLISH).startsWith(prefix)) name = name.substring(prefix.length());
+        return name;
     }
 
     private static void downloadComponentFile(final Type type, final String filename, final Spinner spinner, final String defaultItem) {
