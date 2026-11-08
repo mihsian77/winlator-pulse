@@ -72,9 +72,10 @@ jobs:
 
       - name: 有冲突时开 PR
         if: steps.check.outputs.up_to_date == 'false' && steps.merge.outputs.result == 'conflict'
+        # GITHUB_TOKEN / PAT 都可能没有建 PR 的权限，这里失败只提示不中断：
+        # 分支已经 push 上去了，人工点 compare 链接就能开 PR
+        continue-on-error: true
         env:
-          # GITHUB_TOKEN 无法创建 PR（Resource not accessible by integration），
-          # 用仓库里已配置的 PAT 代替
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           BRANCH="auto-sync-upstream"
@@ -103,5 +104,6 @@ jobs:
           if echo "$EXIST" | grep -qE '^[0-9]+$'; then
             gh pr edit "$EXIST" --title "sync: 合并 hostei33 上游（冲突）" --body-file /tmp/pr-body.md
           else
-            gh pr create --base main --head "$BRANCH" --title "sync: 合并 hostei33 上游（冲突）" --body-file /tmp/pr-body.md
+            gh pr create --base main --head "$BRANCH" --title "sync: 合并 hostei33 上游（冲突）" --body-file /tmp/pr-body.md \
+              || echo "::warning::PR 无法自动创建，请手动打开 https://github.com/${GITHUB_REPOSITORY}/compare/main...${BRANCH}?expand=1"
           fi
