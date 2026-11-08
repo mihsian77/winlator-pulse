@@ -409,7 +409,12 @@ public class ContentsFragment extends Fragment {
             if (content != null && !content.isEmpty()) {
                 for (String line : content.split("\n")) {
                     line = line.trim();
-                    if (!line.isEmpty()) availableComponents.add(line);
+                    // 跳过空行、注释/标题行（部分 index.txt 带 "# xxx" 之类的标题）
+                    if (line.isEmpty() || line.startsWith("#")) continue;
+                    // 只接受真实的组件文件名，避免把标题文字当成可下载条目
+                    String lower = line.toLowerCase();
+                    if (!lower.endsWith(TZSD_EXTENSION) && !lower.endsWith(".sf2")) continue;
+                    availableComponents.add(line);
                 }
             }
             refreshInstalledStatus();

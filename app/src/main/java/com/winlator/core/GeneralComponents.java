@@ -404,14 +404,26 @@ public abstract class GeneralComponents {
         activity.runOnUiThread(() -> {
             preloaderDialog.close();
             if (content != null) {
-                if (content.isEmpty()) {
+                String[] lines = content.split("\n");
+                ArrayList<String> validFilenames = new ArrayList<>();
+                for (String line : lines) {
+                    line = line.trim();
+                    // 跳过空行与标题/注释行，避免把 "# ..." / "Available versions:" 当组件
+                    if (line.isEmpty() || line.startsWith("#")) continue;
+                    String lower = line.toLowerCase(Locale.ENGLISH);
+                    if (!lower.endsWith(".tzst") && !lower.endsWith(".sf2")) continue;
+                    validFilenames.add(line);
+                }
+
+                if (validFilenames.isEmpty()) {
                     AppUtils.showToast(activity, R.string.there_are_no_items_to_download);
                     return;
                 }
-                final String[] filenames = content.split("\n");
-                final String[] items = filenames.clone();
-                for (int i = 0; i < items.length; i++) {
-                    items[i] = type.title()+" "+parseDisplayText(type, items[i]);
+
+                final String[] filenames = validFilenames.toArray(new String[0]);
+                final String[] items = new String[filenames.length];
+                for (int i = 0; i < filenames.length; i++) {
+                    items[i] = type.title()+" "+parseDisplayText(type, filenames[i]);
                 }
 
                 ContentDialog.showSelectionList(activity, R.string.install_component, items, false, (positions) -> {
