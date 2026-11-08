@@ -73,7 +73,9 @@ jobs:
       - name: 有冲突时开 PR
         if: steps.check.outputs.up_to_date == 'false' && steps.merge.outputs.result == 'conflict'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN 无法创建 PR（Resource not accessible by integration），
+          # 用仓库里已配置的 PAT 代替
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           BRANCH="auto-sync-upstream"
           git checkout -B "$BRANCH"
