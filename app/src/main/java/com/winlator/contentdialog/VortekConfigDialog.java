@@ -49,6 +49,10 @@ public class VortekConfigDialog extends ContentDialog {
 
         String adrenotoolsDriver = config.get("adrenotoolsDriver");
         GeneralComponents.initViews(GeneralComponents.Type.ADRENOTOOLS_DRIVER, findViewById(R.id.AdrenotoolsDriverToolbox), sAdrenotoolsDriver, adrenotoolsDriver, "System");
+        // 组件仓库里没有 adrenotools 驱动内容时，这个下拉只有 System 一项，留着只是摆设
+        if (sAdrenotoolsDriver.getAdapter() == null || sAdrenotoolsDriver.getAdapter().getCount() <= 1) {
+            findViewById(R.id.AdrenotoolsDriverToolbox).setVisibility(View.GONE);
+        }
 
         AppUtils.setSpinnerSelectionFromValue(sVkMaxVersion, config.get("vkMaxVersion", DEFAULT_VK_MAX_VERSION));
         AppUtils.setSpinnerSelectionFromMemorySize(sMaxDeviceMemory, config.get("maxDeviceMemory", "0"));
