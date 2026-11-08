@@ -25,6 +25,7 @@ import java.util.Locale;
 
 public abstract class GeneralComponents {
     public enum InstallMode {DOWNLOAD, FILE, BOTH}
+<<<<<<< HEAD
     // 加速节点列表（按 MirrorHub 延迟排序）
     private static final String[] INDEX_URL_TEMPLATES = {
         "https://cdn.jsdelivr.net/gh/mihsian77/winlator-components@main/%s/index.txt",
@@ -39,6 +40,9 @@ public abstract class GeneralComponents {
         "https://ghproxy.net/https://github.com/mihsian77/winlator-components/releases/download/%s/%s",
         "https://github.com/mihsian77/winlator-components/releases/download/%s/%s"
     };
+=======
+    private static final String INSTALLABLE_COMPONENTS_URL = "http://cdn4.52emu.cn/wlt/v10/installable_components/%s";
+>>>>>>> upstream/main
 
     public enum Type {
         BOX64, TURNIP, DXVK, VKD3D, WINED3D, SOUNDFONT, ADRENOTOOLS_DRIVER, D7VK, D8VK, VIRGL;

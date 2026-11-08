@@ -1,5 +1,10 @@
 package com.winlator.contents;
 
+<<<<<<< HEAD
+=======
+import android.app.Activity;
+import android.content.Intent;
+>>>>>>> upstream/main
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -8,6 +13,10 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
+<<<<<<< HEAD
+=======
+import android.text.TextUtils;
+>>>>>>> upstream/main
 import android.util.Log;
 import android.util.TypedValue;
 import android.content.res.TypedArray;
@@ -15,11 +24,21 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+<<<<<<< HEAD
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
+=======
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.ScrollView;
+import android.widget.Spinner;
+>>>>>>> upstream/main
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -27,11 +46,18 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+<<<<<<< HEAD
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
 import com.winlator.core.HttpUtils;
+=======
+import androidx.appcompat.app.AlertDialog;      // 使用 AppCompat 版本支持深色模式
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+
+>>>>>>> upstream/main
 import com.winlator.core.TarCompressorUtils;
 
 import java.io.File;
@@ -41,6 +67,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+<<<<<<< HEAD
 import java.util.ArrayList;
 import java.util.HashSet;
 
@@ -49,10 +76,18 @@ public class ContentsFragment extends Fragment {
 
     // 有在线仓库的组件类型（可以在线下载）
     private static final java.util.Set<String> ONLINE_TYPES = new java.util.HashSet<>(java.util.Arrays.asList("dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk"));
+=======
+import java.util.Arrays;
+
+public class ContentsFragment extends Fragment {
+    private static final String[] FILE_TYPES = {"dxvk", "box64", "turnip", "virgl", "vkd3d", "wine", "proton"};
+    private static final String WHP_EXTENSION = ".whp";
+>>>>>>> upstream/main
     private static final String TZSD_EXTENSION = ".tzst";
     private static final int CORNER_RADIUS_DP = 12;
     private static final int ELEVATION_DP = 4;
 
+<<<<<<< HEAD
     // 加速节点列表（按 MirrorHub 延迟排序）
     // raw 文件用 jsDelivr CDN 加速
     private static final String[] INDEX_URL_TEMPLATES = {
@@ -70,11 +105,14 @@ public class ContentsFragment extends Fragment {
         "https://github.com/mihsian77/winlator-components/releases/download/%s/%s"
     };
 
+=======
+>>>>>>> upstream/main
     private static boolean isWineOrProton(String category) {
         return category.equalsIgnoreCase("wine") || category.equalsIgnoreCase("proton");
     }
 
     private String baseFilesPath;
+<<<<<<< HEAD
     private String currentCategory = FILE_TYPES[0];
 
     private LinearLayout fileListContainer;
@@ -85,16 +123,40 @@ public class ContentsFragment extends Fragment {
     private ActivityResultLauncher<String[]> filePickerLauncher;
     private AlertDialog installProgressDialog;
 
+=======
+    private String currentStoragePath = "installed_components";
+    private String currentInstallPath = "";
+
+    private LinearLayout fileListContainer;
+    private Spinner categorySpinner;
+    private String currentCategory = FILE_TYPES[0];
+    private String installCategory;
+    private Uri selectedFileUri;
+
+    private AlertDialog installProgressDialog;
+
+    private final ActivityResultLauncher<Intent> filePickerLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                    selectedFileUri = result.getData().getData();
+                    validateSelectedFile();
+                }
+            });
+
+>>>>>>> upstream/main
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         baseFilesPath = requireContext().getFilesDir().getAbsolutePath();
         initDirectories();
+<<<<<<< HEAD
 
         // 注册文件选择器
         filePickerLauncher = registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
             if (uri != null) installFromUri(uri);
         });
+=======
+>>>>>>> upstream/main
     }
 
     @Override
@@ -118,9 +180,18 @@ public class ContentsFragment extends Fragment {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 try {
                     Files.createSymbolicLink(imageFsDir.toPath(), Paths.get("./rootfs"));
+<<<<<<< HEAD
                 } catch (Exception e) {
                     Log.e("Symlink", "创建符号链接失败", e);
                 }
+=======
+                    Log.d("Symlink", "符号链接创建成功");
+                } catch (Exception e) {
+                    Log.e("Symlink", "创建符号链接失败", e);
+                }
+            } else {
+                Log.w("Symlink", "符号链接需要 Android 8+，跳过创建");
+>>>>>>> upstream/main
             }
         }
 
@@ -142,6 +213,7 @@ public class ContentsFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         LinearLayout root = new LinearLayout(requireContext());
         root.setOrientation(LinearLayout.VERTICAL);
+<<<<<<< HEAD
         root.setBackgroundColor(getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#F5F5F5"), Color.parseColor("#121212")));
         int padding = dpToPx(16);
         root.setPadding(padding, padding, padding, padding);
@@ -182,12 +254,49 @@ public class ContentsFragment extends Fragment {
         root.addView(categorySelector, createLayoutParams(12));
 
         // === 滚动列表 ===
+=======
+        root.setBackgroundColor(getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#FAFAFA"), Color.parseColor("#121212")));
+        int padding = dpToPx(16);
+        root.setPadding(padding, padding, padding, padding);
+
+        TextView title = new TextView(requireContext());
+        title.setText("选择附加类型");
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setPadding(0, 0, 0, dpToPx(12));
+        root.addView(title);
+
+        categorySpinner = new Spinner(requireContext());
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_dropdown_item, FILE_TYPES);
+        categorySpinner.setAdapter(adapter);
+        int cardBgColor = getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#FFFFFF"), Color.parseColor("#121212"));
+        categorySpinner.setBackground(createRoundedBackground(cardBgColor, CORNER_RADIUS_DP));
+        categorySpinner.setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            categorySpinner.setElevation(dpToPx(ELEVATION_DP));
+        }
+        categorySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                currentCategory = FILE_TYPES[position];
+                refreshFileList();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+        root.addView(categorySpinner, createLayoutParams(16));
+
+        // 滚动列表
+>>>>>>> upstream/main
         ScrollView scroll = new ScrollView(requireContext());
         fileListContainer = new LinearLayout(requireContext());
         fileListContainer.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(fileListContainer);
         root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
+<<<<<<< HEAD
         // === 底部按钮 ===
         LinearLayout btnLayout = new LinearLayout(requireContext());
         btnLayout.setOrientation(LinearLayout.HORIZONTAL);
@@ -578,6 +687,89 @@ public class ContentsFragment extends Fragment {
                                 dismissInstallProgressDialog();
                                 showToast("✔ 安装完成");
                                 refreshInstalledStatus();
+=======
+        // 安装按钮
+        Button installBtn = new Button(requireContext());
+        installBtn.setText("选择安装文件");
+        installBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        installBtn.setTextColor(Color.WHITE);
+        installBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        installBtn.setAllCaps(false);
+        int primaryColor = getColorFromAttr(android.R.attr.colorPrimary, Color.parseColor("#2196F3"), Color.parseColor("#2196F3"));
+        installBtn.setBackground(createRoundedBackground(primaryColor, CORNER_RADIUS_DP));
+        installBtn.setPadding(0, dpToPx(14), 0, dpToPx(14));
+        installBtn.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("*/*");
+            filePickerLauncher.launch(intent);
+        });
+        root.addView(installBtn, createLayoutParams(24));
+
+        refreshFileList();
+        return root;
+    }
+
+    private int getColorFromAttr(int attr, int lightDefault, int darkDefault) {
+        TypedArray ta = requireContext().getTheme().obtainStyledAttributes(new int[]{attr});
+        int color = ta.getColor(0, 0);
+        ta.recycle();
+        if (color != 0) return color;
+
+        int nightMode = getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+        return nightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES ? darkDefault : lightDefault;
+    }
+
+    private void validateSelectedFile() {
+        if (selectedFileUri == null) {
+            showToast("无效文件选择");
+            return;
+        }
+
+        String fileName = extractFileName(selectedFileUri);
+        if (fileName == null) {
+            showToast("无效文件选择");
+            return;
+        }
+
+        String detected = detectCategory(fileName);
+        if (detected == null) {
+            showToast("无法识别文件类别，请确保文件名包含 " + TextUtils.join(", ", FILE_TYPES));
+            return;
+        }
+        if (!fileName.toLowerCase().endsWith(WHP_EXTENSION)) {
+            showToast("请选择 .whp 文件");
+            return;
+        }
+
+        installCategory = detected;
+        showInstallDialog(fileName);
+    }
+
+    private String detectCategory(String fileName) {
+        String lower = fileName.toLowerCase();
+        for (String type : FILE_TYPES) {
+            if (lower.contains(type.toLowerCase())) return type;
+        }
+        return null;
+    }
+
+    private void showInstallDialog(String fileName) {
+        new AlertDialog.Builder(requireContext())
+                .setTitle("安全提示")
+                .setMessage("即将安装：" + fileName + "\n请确认文件来源可靠")
+                .setPositiveButton("确认安装", (d, w) -> {
+                    showInstallProgressDialog();
+                    new Thread(() -> {
+                        try {
+                            performInstall(fileName);
+                            requireActivity().runOnUiThread(() -> {
+                                dismissInstallProgressDialog();
+                                showToast("✔ 安装完成");
+                                currentCategory = installCategory;
+                                int pos = Arrays.asList(FILE_TYPES).indexOf(currentCategory);
+                                if (pos >= 0) categorySpinner.setSelection(pos);
+                                refreshFileList();
+>>>>>>> upstream/main
                             });
                         } catch (Exception e) {
                             requireActivity().runOnUiThread(() -> {
@@ -587,6 +779,7 @@ public class ContentsFragment extends Fragment {
                         }
                     }).start();
                 })
+<<<<<<< HEAD
                 .setNegativeButton("取消", null)
                 .show();
     }
@@ -595,11 +788,54 @@ public class ContentsFragment extends Fragment {
         boolean isWine = isWineOrProton(currentCategory);
         String storagePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
         String installPath = isWine ? "" : currentCategory;
+=======
+                .setNegativeButton("取消操作", null)
+                .show();
+    }
+
+    private void showInstallProgressDialog() {
+        if (installProgressDialog != null && installProgressDialog.isShowing()) return;
+
+        LinearLayout layout = new LinearLayout(requireContext());
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dpToPx(24), dpToPx(24), dpToPx(24), dpToPx(24));
+        layout.setGravity(Gravity.CENTER);
+
+        ProgressBar progressBar = new ProgressBar(requireContext());
+        progressBar.setIndeterminate(true);
+        layout.addView(progressBar);
+
+        TextView message = new TextView(requireContext());
+        message.setText("正在安装，请稍候...");
+        message.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        message.setPadding(0, dpToPx(16), 0, 0);
+        layout.addView(message);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setView(layout);
+        builder.setCancelable(false);
+        installProgressDialog = builder.create();
+        installProgressDialog.show();
+    }
+
+    private void dismissInstallProgressDialog() {
+        if (installProgressDialog != null && installProgressDialog.isShowing()) {
+            installProgressDialog.dismiss();
+            installProgressDialog = null;
+        }
+    }
+
+    private void performInstall(String fileName) throws Exception {
+        boolean isWine = isWineOrProton(installCategory);
+        String storagePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
+        String installPath = isWine ? "" : installCategory;
+>>>>>>> upstream/main
         File targetDir = new File(baseFilesPath, storagePath + File.separator + installPath);
         if (!targetDir.exists() && !targetDir.mkdirs()) {
             throw new Exception("目录创建失败");
         }
 
+<<<<<<< HEAD
         String baseName = filename.replace(TZSD_EXTENSION, "");
         File outFile = new File(targetDir, baseName + TZSD_EXTENSION);
 
@@ -636,6 +872,157 @@ public class ContentsFragment extends Fragment {
             int len;
             while ((len = input.read(buffer)) != -1) output.write(buffer, 0, len);
         }
+=======
+        String baseName = fileName.replaceAll("(?i)" + WHP_EXTENSION + "$", "");
+        try (InputStream input = requireContext().getContentResolver().openInputStream(selectedFileUri)) {
+            if (input == null) throw new Exception("无法读取文件");
+
+            if (isWine) {
+                TarCompressorUtils.Type type = detectCompressionType(selectedFileUri);
+                if (type == null) throw new Exception("不支持的文件格式，请提供 XZ 或 ZSTD 压缩的 Wine/Proton 包");
+                if (!TarCompressorUtils.extract(type, requireContext(), selectedFileUri, targetDir, null)) {
+                    throw new Exception("解压失败");
+                }
+            } else {
+                File outFile = new File(targetDir, baseName + TZSD_EXTENSION);
+                try (OutputStream output = new FileOutputStream(outFile)) {
+                    byte[] buffer = new byte[8192];
+                    int len;
+                    while ((len = input.read(buffer)) != -1) output.write(buffer, 0, len);
+                }
+            }
+        }
+    }
+
+    private TarCompressorUtils.Type detectCompressionType(Uri uri) throws IOException {
+        byte[] magic = new byte[6];
+        try (InputStream is = requireContext().getContentResolver().openInputStream(uri)) {
+            if (is == null || is.read(magic) < 4) return null;
+            if ((magic[0] & 0xFF) == 0xFD && (magic[1] & 0xFF) == 0x37 &&
+                (magic[2] & 0xFF) == 0x7A && (magic[3] & 0xFF) == 0x58 &&
+                (magic[4] & 0xFF) == 0x5A && (magic[5] & 0xFF) == 0x00) {
+                return TarCompressorUtils.Type.XZ;
+            }
+            if ((magic[0] & 0xFF) == 0x28 && (magic[1] & 0xFF) == 0xB5 &&
+                (magic[2] & 0xFF) == 0x2F && (magic[3] & 0xFF) == 0xFD) {
+                return TarCompressorUtils.Type.ZSTD;
+            }
+            return null;
+        }
+    }
+
+    private void sanitizeWineFolderNames(File dir) {
+        if (dir == null || !dir.exists() || !dir.isDirectory()) return;
+        File[] folders = dir.listFiles(File::isDirectory);
+        if (folders == null) return;
+
+        for (File folder : folders) {
+            String oldName = folder.getName();
+            if (oldName.endsWith("-")) {
+                String newName = oldName.substring(0, oldName.length() - 1);
+                File newFolder = new File(folder.getParent(), newName);
+                if (folder.renameTo(newFolder)) {
+                    Log.d("WineFolder", "重命名文件夹: " + oldName + " -> " + newName);
+                    String version = extractVersionFromName(oldName);
+                    if (version != null) {
+                        File oldPattern = new File(folder.getParent(), "container-pattern-" + version + ".tzst");
+                        if (oldPattern.exists()) {
+                            String newVersion = extractVersionFromName(newName);
+                            if (newVersion != null) {
+                                File newPattern = new File(folder.getParent(), "container-pattern-" + newVersion + ".tzst");
+                                oldPattern.renameTo(newPattern);
+                                Log.d("WineFolder", "重命名 pattern: " + oldPattern.getName() + " -> " + newPattern.getName());
+                            }
+                        }
+                    }
+                } else {
+                    Log.e("WineFolder", "重命名失败: " + oldName);
+                }
+            }
+        }
+    }
+
+    private String extractVersionFromName(String folderName) {
+        int dash = folderName.indexOf('-');
+        if (dash == -1) return null;
+        String version = folderName.substring(dash + 1);
+        if (version.endsWith("-")) version = version.substring(0, version.length() - 1);
+        return version;
+    }
+
+    private void refreshFileList() {
+        boolean isWine = isWineOrProton(currentCategory);
+        currentStoragePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
+        currentInstallPath = isWine ? "" : currentCategory;
+
+        fileListContainer.removeAllViews();
+        File dir = new File(baseFilesPath, currentStoragePath + File.separator + currentInstallPath);
+        if (!dir.exists() || !dir.isDirectory()) {
+            showEmptyState();
+            return;
+        }
+
+        if (isWine) {
+            sanitizeWineFolderNames(dir);
+        }
+
+        File[] files = dir.listFiles();
+        if (files == null || files.length == 0) {
+            showEmptyState();
+            return;
+        }
+
+        boolean hasEntries = false;
+        for (File f : files) {
+            if (isWine) {
+                if (f.isDirectory()) {
+                    addFileEntry(f.getName());
+                    hasEntries = true;
+                }
+            } else {
+                String name = f.isFile() ? f.getName().replace(TZSD_EXTENSION, "") : f.getName();
+                addFileEntry(name);
+                hasEntries = true;
+            }
+        }
+        if (!hasEntries) showEmptyState();
+    }
+
+    private void showEmptyState() {
+        TextView empty = new TextView(requireContext());
+        empty.setText("当前无已安装项目");
+        empty.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        empty.setGravity(Gravity.CENTER);
+        empty.setPadding(0, dpToPx(32), 0, 0);
+        fileListContainer.addView(empty);
+    }
+
+    private void addFileEntry(String name) {
+        LinearLayout item = new LinearLayout(requireContext());
+        item.setOrientation(LinearLayout.HORIZONTAL);
+        int cardBgColor = getColorFromAttr(android.R.attr.colorBackground, Color.parseColor("#FFFFFF"), Color.parseColor("#121212"));
+        item.setBackground(createRoundedBackground(cardBgColor, CORNER_RADIUS_DP));
+        item.setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            item.setElevation(dpToPx(ELEVATION_DP / 2));
+        }
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 0, 0, dpToPx(8));
+        item.setLayoutParams(lp);
+
+        TextView tv = new TextView(requireContext());
+        tv.setText(name);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        tv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        item.addView(tv);
+
+        item.setOnLongClickListener(v -> {
+            showDeleteDialog(name);
+            return true;
+        });
+        fileListContainer.addView(item);
+>>>>>>> upstream/main
     }
 
     private void showDeleteDialog(String name) {
@@ -643,11 +1030,16 @@ public class ContentsFragment extends Fragment {
                 .setTitle("确认")
                 .setMessage("确定删除 " + name + " 吗？")
                 .setPositiveButton("确定删除", (d, w) -> deleteFile(name))
+<<<<<<< HEAD
                 .setNegativeButton("取消", null)
+=======
+                .setNegativeButton("取消操作", null)
+>>>>>>> upstream/main
                 .show();
     }
 
     private void deleteFile(String name) {
+<<<<<<< HEAD
         boolean isWine = isWineOrProton(currentCategory);
         String storagePath = isWine ? "rootfs/opt/installed-wine" : "installed_components";
         String installPath = isWine ? "" : currentCategory;
@@ -655,14 +1047,35 @@ public class ContentsFragment extends Fragment {
 
         boolean success;
         if (isWine) {
+=======
+        File target = new File(baseFilesPath, currentStoragePath + File.separator + currentInstallPath + File.separator + name);
+        boolean success;
+        if (isWineOrProton(currentCategory)) {
+            int dash = name.indexOf('-');
+            if (dash == -1) {
+                showToast("无法识别版本");
+                return;
+            }
+            String version = name.substring(dash + 1);
+            if (version.endsWith("-")) version = version.substring(0, version.length() - 1);
+            File pattern = new File(baseFilesPath, currentStoragePath + File.separator + currentInstallPath +
+                    File.separator + "container-pattern-" + version + ".tzst");
+            pattern.delete();
+>>>>>>> upstream/main
             success = deleteRecursive(target);
         } else {
             success = new File(target.getAbsolutePath() + TZSD_EXTENSION).delete();
         }
+<<<<<<< HEAD
 
         if (success) {
             showToast("✔ 删除成功");
             refreshInstalledStatus();
+=======
+        if (success) {
+            showToast("✔ 删除成功");
+            refreshFileList();
+>>>>>>> upstream/main
         } else {
             showToast("✘ 删除失败");
         }
@@ -691,6 +1104,7 @@ public class ContentsFragment extends Fragment {
         }
     }
 
+<<<<<<< HEAD
     private void showInstallProgressDialog() {
         if (installProgressDialog != null && installProgressDialog.isShowing()) return;
 
@@ -733,6 +1147,8 @@ public class ContentsFragment extends Fragment {
         return nightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES ? darkDefault : lightDefault;
     }
 
+=======
+>>>>>>> upstream/main
     private GradientDrawable createRoundedBackground(int color, int radiusDP) {
         GradientDrawable gd = new GradientDrawable();
         gd.setShape(GradientDrawable.RECTANGLE);
@@ -748,6 +1164,26 @@ public class ContentsFragment extends Fragment {
         return lp;
     }
 
+<<<<<<< HEAD
+=======
+    private String extractFileName(Uri uri) {
+        String name = null;
+        if ("content".equals(uri.getScheme())) {
+            try (Cursor cursor = requireContext().getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    name = cursor.getString(idx);
+                }
+            }
+        }
+        if (name == null) {
+            String path = uri.getPath();
+            if (path != null) name = path.substring(path.lastIndexOf('/') + 1);
+        }
+        return name;
+    }
+
+>>>>>>> upstream/main
     private int dpToPx(float dp) {
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp,
                 requireContext().getResources().getDisplayMetrics());
@@ -756,4 +1192,8 @@ public class ContentsFragment extends Fragment {
     private void showToast(String msg) {
         Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> upstream/main

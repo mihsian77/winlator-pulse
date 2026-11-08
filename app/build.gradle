@@ -36,6 +36,7 @@ android {
         checkReleaseBuilds false
     }
 
+<<<<<<< HEAD
     // assets 里都是已压缩的镜像/组件包（tzst/sf2/whp），再压一遍没有收益，
     // 还会让 compressReleaseAssets 把 200MB 的 assets 整个读进内存导致
     // "Java heap space" 构建失败。直接按原样打包。
@@ -48,6 +49,13 @@ android {
     if (!project.hasProperty('skipNative')) {
         ndkVersion '24.0.8215888'
 
+=======
+    // 「仅编译 Java」的 CI 流程会先删掉 app/src/main/cpp，再传 -PskipNative 跳过下面这段
+    // 原生构建配置。本地构建与「含 C 编译」的 CI 流程不传该属性，行为完全不变。
+    if (!project.hasProperty('skipNative')) {
+        ndkVersion '24.0.8215888'
+
+>>>>>>> upstream/main
         externalNativeBuild {
             cmake {
                 version '3.22.1'
