@@ -80,6 +80,11 @@
 **4. 构建环境**
 CI 跑在 `ubuntu-24.04-arm` 原生 arm64 runner，输出落在 `usr/lib/aarch64-linux-gnu/`，是标准 glibc 产物，不是 Android NDK 的 bionic 产物。
 
+**5. 组件版本后缀会被配置层截断**
+`TurnipConfigDialog` 早先用 `StringUtils.parseNumber()` 存版本号，这个方法会把所有非数字字符剔掉：`26.1.0-dev` 存进去就变成 `26.1.0`。启动时 `extractFile` 找 `turnip-26.1.0.tzst` 找不到，**静默回退到内置驱动**，表现就是"装了但没生效"，而且没有任何报错。
+DXVK / VKD3D / WineD3D 的对话框用的是原始文本，只有 Turnip 踩了这个坑。
+→ 已改成保留原始标签。以后新增任何带后缀的组件命名（`-dev`、`-sp`、`-gplasync` 之类），配置层一律存原始字符串，不要经过 `parseNumber`。
+
 ---
 
 ## 五、组件分类现状
