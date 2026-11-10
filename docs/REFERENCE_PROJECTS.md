@@ -65,11 +65,14 @@
 **1. Ubuntu 的 `libc.so` 是 linker script**
 里面写着 `AS_NEEDED(ld-linux-aarch64.so.1)`。链接时只要 `--no-as-needed` 生效，动态链接器本身就会被记进 NEEDED。运行时 dlopen 一个"依赖 PIE loader"的 .so，loader 直接拒绝，表现就是闪退。
 → 打包前用 `patchelf --remove-needed ld-linux-aarch64.so.1` 剔掉（已在 `build_turnip.sh` 里）。
+→ **已验证生效**：Removing 后的包在 Adreno 740 上跑 DXVK 9.0 正常渲染，GPUInfo 认出 `Mesa 26.1.0-devel`。
+验证方法：容器里跑 GPUInfo 看 Driver Version 那一行，是不是 `Mesa <你的构建版本>`。日志窗口看不到这个 —— 它只保留到 `init_peb` 那一刻。
 
 **2. 依赖必须和官方对齐**
 官方 turnip 的 NEEDED 里有 `libexpat` / `libxcb-sync` / `libxcb-randr`，没有 `libzstd` / `ld-linux`。
 我们的构建 `-Dxmlconfig=disabled`、默认 `zstd` 开着，所以正好反过来。
-这两条是否影响运行还没验证完，标为疑点。
+→ 实测多 `libzstd`、少 `libexpat` 这一组不影响运行（DXVK 9.0 正常）。少 `libxcb-sync` / `libxcb-randr` 的影响还没单独验证，标为残留疑点。
+→ 日志里 `libEGL.so.1` 加载失败那条属于 OpenGL 路径（`wgl`），跟 Vulkan 无关，不影响 DXVK。
 
 **3. 试过不行的编译参数**
 - `-Ddri3=enabled`：新版 Mesa 已移除该选项
