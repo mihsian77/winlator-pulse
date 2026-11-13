@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.PopupMenu;
@@ -250,10 +251,13 @@ public abstract class GeneralComponents {
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, sourcePath, destination, onExtractFileListener);
         }
         else {
-            File componentDir = getComponentDir(type, context);
-            File source = new File(componentDir, type.lowerName()+"-"+identifier+".tzst");
+            // 必须走 getSource 的兜底匹配：仓库里有 WineD3D-11.6.tzst 这类非标准命名，
+            // 直接拼 lowerName()-identifier 会把它们漏掉，表现同样是"装了但启动用不上"
+            File source = type.getSource(context, identifier);
             boolean success = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, source, destination, onExtractFileListener);
             if (!success) {
+                Log.w("GeneralComponents", "component missing: " + source.getName()
+                        + ", falling back to builtin " + defaultVersion);
                 String sourcePath = type.assetFolder()+"/"+type.lowerName()+"-"+defaultVersion+".tzst";
                 TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, sourcePath, destination, onExtractFileListener);
             }
