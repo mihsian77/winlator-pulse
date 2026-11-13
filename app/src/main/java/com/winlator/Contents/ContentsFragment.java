@@ -45,10 +45,10 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 public class ContentsFragment extends Fragment {
-    private static final String[] FILE_TYPES = {"dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk", "virgl", "wine", "proton", "dxvk-nightly", "vkd3d-nightly"};
+    private static final String[] FILE_TYPES = {"dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk", "virgl", "wine", "proton", "dxvk-nightly", "vkd3d-nightly", "d7vk-nightly", "dxvk-sarek-nightly"};
 
     // 有在线仓库的组件类型（可以在线下载）
-    private static final java.util.Set<String> ONLINE_TYPES = new java.util.HashSet<>(java.util.Arrays.asList("dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk", "dxvk-nightly", "vkd3d-nightly"));
+    private static final java.util.Set<String> ONLINE_TYPES = new java.util.HashSet<>(java.util.Arrays.asList("dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk", "dxvk-nightly", "vkd3d-nightly", "d7vk-nightly", "dxvk-sarek-nightly"));
     private static final String TZSD_EXTENSION = ".tzst";
     private static final int CORNER_RADIUS_DP = 12;
     private static final int ELEVATION_DP = 4;
@@ -79,6 +79,8 @@ public class ContentsFragment extends Fragment {
         if (isWineOrProton(category)) return "";
         if (category.equalsIgnoreCase("dxvk-nightly")) return "dxvk";
         if (category.equalsIgnoreCase("vkd3d-nightly")) return "vkd3d";
+        if (category.equalsIgnoreCase("dxvk-sarek-nightly")) return "dxvk";
+        if (category.equalsIgnoreCase("d7vk-nightly")) return "d7vk";
         return category;
     }
 
@@ -611,13 +613,27 @@ public class ContentsFragment extends Fragment {
         String baseName = filename.replace(TZSD_EXTENSION, "");
         File outFile = new File(targetDir, baseName + TZSD_EXTENSION);
 
+        // 校验清单拿不到就退化成只查文件头，不阻塞下载
+        java.util.Map<String, String> digests = fetchSha256Map(currentCategory);
+        boolean checkZstd = !isWine;
+
         // 依次尝试多个加速节点
         for (String template : DOWNLOAD_URL_TEMPLATES) {
             String url = String.format(template, currentCategory, filename);
             try {
                 tryDownload(url, outFile);
                 if (outFile.exists() && outFile.length() > 0) {
-                    return; // 下载成功
+                    // 连接中途断开也会留下一个大于 0 的文件，必须验证内容是不是完整的包
+                    if (checkZstd && !looksLikeZstd(outFile)) {
+                        outFile.delete();
+                        continue;
+                    }
+                    String expect = digests.get(filename);
+                    if (expect != null && !expect.equalsIgnoreCase(sha256Of(outFile))) {
+                        outFile.delete();
+                        continue;
+                    }
+                    return; // 下载并校验通过
                 }
             } catch (Exception e) {
                 // 当前节点失败，尝试下一个
@@ -625,6 +641,56 @@ public class ContentsFragment extends Fragment {
         }
 
         throw new Exception("所有节点都下载失败");
+    }
+
+    private java.util.Map<String, String> fetchSha256Map(String category) {
+        java.util.Map<String, String> map = new java.util.HashMap<>();
+        for (String template : INDEX_URL_TEMPLATES) {
+            String url = String.format(template, category).replace("index.txt", "sha256.txt");
+            try {
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(15000);
+                if (conn.getResponseCode() != java.net.HttpURLConnection.HTTP_OK) continue;
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(conn.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        line = line.trim();
+                        if (line.isEmpty()) continue;
+                        String[] parts = line.split("\\s+", 2);
+                        if (parts.length == 2) map.put(parts[1].trim(), parts[0].trim());
+                    }
+                }
+                if (!map.isEmpty()) return map;
+            } catch (Exception e) {
+                // 这个节点取不到就换下一个
+            }
+        }
+        return map;
+    }
+
+    private static boolean looksLikeZstd(File file) {
+        try (java.io.InputStream in = new java.io.FileInputStream(file)) {
+            byte[] magic = new byte[4];
+            if (in.read(magic) < 4) return false;
+            return (magic[0] & 0xFF) == 0x28 && (magic[1] & 0xFF) == 0xB5
+                    && (magic[2] & 0xFF) == 0x2F && (magic[3] & 0xFF) == 0xFD;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static String sha256Of(File file) throws Exception {
+        java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+        try (java.io.InputStream in = new java.io.FileInputStream(file)) {
+            byte[] buffer = new byte[8192];
+            int len;
+            while ((len = in.read(buffer)) != -1) digest.update(buffer, 0, len);
+        }
+        StringBuilder sb = new StringBuilder();
+        for (byte b : digest.digest()) sb.append(String.format(java.util.Locale.ENGLISH, "%02x", b & 0xFF));
+        return sb.toString();
     }
 
     private void tryDownload(String url, File outFile) throws Exception {
