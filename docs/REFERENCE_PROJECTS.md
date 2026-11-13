@@ -96,6 +96,8 @@ DXVK / VKD3D / WineD3D 的对话框用的是原始文本，只有 Turnip 踩了�
 |---|---|---|---|
 | `dxvk` / `vkd3d` | ✅ | — | 主组件，含 gplasync / sarek / arm64ec 变体 |
 | `dxvk-nightly` / `vkd3d-nightly` | ✅ | — | 每夜同步，只留最近几个 release |
+| `d7vk-nightly` | ✅ | — | 2026-11 接入，上游每天出，装进 `d7vk/` |
+| `dxvk-sarek-nightly` | ✅ | — | 2026-11 接入。**非 arm64ec 的 sarek 8 月停更了，现在同步的是 arm64ec 变体** |
 | `box64` | ✅ | ✅ | 官方构建 |
 | `turnip` | ✅ | ✅（`turnip-26.2.0`） | 只列官方版本，自编译的带 `-dev` 不进列表 |
 | `wined3d` / `d7vk` / `d8vk` | ✅ | — | 小分类 |
@@ -103,6 +105,22 @@ DXVK / VKD3D / WineD3D 的对话框用的是原始文本，只有 Turnip 踩了�
 | `soundfont` | ✅（新加） | ✅ SONiVOX 精简 GM | 见下 |
 | `wine` / `proton` | ❌ | ❌ | **本来就不走在线下载**，`isWineOrProton()` 走本地文件导入。没有 index 是设计，不是缺口 |
 | `adrenotools` | ❌ | ❌ | 真空转：UI 入口在、内容没有、上游 404。已改成没驱动就隐藏入口 |
+
+### 索引与校验
+- 每个分类两个文件：`index.txt`（纯文件名，安装器逐行解析）和 `sha256.txt`（`<hash>  <文件名>`）。
+- `sha256.txt` 由每夜同步从 release asset 的 `digest` 字段生成，不额外下载文件。
+- 安装器下载后会先看 zstd 文件头，再比对 sha256；对不上就删掉换下一个镜节点。拿不到 `sha256.txt` 时退化为只查文件头，不会卡住下载。
+- **索引每次都刷新**。以前只在"有新文件"时才重写，修剪旧包之后列表里会一直留着已经删掉的条目。
+
+### 上游 nightly 的实际情况
+| 上游标签 | 状态 |
+|---|---|
+| `vkd3d-nightly` / `d7vk-nightly` / `box64-nightly` / `fex-nightly` | 每天更新 |
+| `dxvk-nightly`（普通） | 2026-08-24 停更，分类里只剩历史包 |
+| `dxvk-sarek-nightly`（非 arm64ec） | 2026-08 停更 |
+| `dxvk-sarek-arm64ec-nightly` | 仍在更新（最近 10-26） |
+| `fex-unix` / `box64-arm64ec` 等变体 | 在更新，未接入 |
+
 
 ### SoundFont 取舍
 - 内置 `SONiVOX-EAS-GM-Wavetable.sf2`：Android 系统自带那套精简 GM，体积小、preset 少，音色偏电子。
