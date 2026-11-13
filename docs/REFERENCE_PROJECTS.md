@@ -88,6 +88,10 @@ CI 跑在 `ubuntu-24.04-arm` 原生 arm64 runner，输出落在 `usr/lib/aarch64
 DXVK / VKD3D / WineD3D 的对话框用的是原始文本，只有 Turnip 踩了这个坑。
 → 已改成保留原始标签。以后新增任何带后缀的组件命名（`-dev`、`-sp`、`-gplasync` 之类），配置层一律存原始字符串，不要经过 `parseNumber`。
 
+**6. 打包不检查，坏包直接进 release**
+以前 `build_turnip.sh` 编完就 tar、就传，产物长什么样没人看。ld-linux 那个问题就是这么漏出去的：CI 全绿，装到手机上闪退。
+→ 现在 `verify_package()` 在 tar 之前跑：NEEDED 里不能有 `ld-linux`、必须是 `ELF 64-bit ARM aarch64` 共享库、ICD 的 `library_path` 必须指向容器里的路径。不过就 `exit 1`，release 里不会出现坏包。
+
 ---
 
 ## 五、组件分类现状
@@ -107,7 +111,8 @@ DXVK / VKD3D / WineD3D 的对话框用的是原始文本，只有 Turnip 踩了�
 | `adrenotools` | ❌ | ❌ | 真空转：UI 入口在、内容没有、上游 404。已改成没驱动就隐藏入口 |
 
 ### 索引与校验
-- 每个分类两个文件：`index.txt`（纯文件名，安装器逐行解析）和 `sha256.txt`（`<hash>  <文件名>`）。
+- 每个分类三个文件：`index.txt`（纯文件名，安装器逐行解析）、`sha256.txt`（`<hash>  <文件名>`）、`meta.json`（`{文件名: {size, created, sha256}}`）。
+- `meta.json` 用来在列表里显示"几天前出的、多大"，不用为了两个数字去下载整包。取不到就退回只显示"已安装/可下载"，不阻塞。
 - `sha256.txt` 由每夜同步从 release asset 的 `digest` 字段生成，不额外下载文件。
 - 安装器下载后会先看 zstd 文件头，再比对 sha256；对不上就删掉换下一个镜节点。拿不到 `sha256.txt` 时退化为只查文件头，不会卡住下载。
 - **索引每次都刷新**。以前只在"有新文件"时才重写，修剪旧包之后列表里会一直留着已经删掉的条目。
