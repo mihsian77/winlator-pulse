@@ -91,6 +91,8 @@ public class ContentsFragment extends Fragment {
     private TextView categorySelector;
     private ArrayList<String> availableComponents = new ArrayList<>();
     private HashSet<String> installedComponents = new HashSet<>();
+    // 文件名 -> {size, created}，来自分类目录下的 meta.json；取不到就为空，不影响列表
+    private java.util.Map<String, org.json.JSONObject> currentMeta = new java.util.HashMap<>();
 
     private ActivityResultLauncher<String[]> filePickerLauncher;
     private AlertDialog installProgressDialog;
@@ -380,6 +382,8 @@ public class ContentsFragment extends Fragment {
     }
 
     private void loadAvailableComponents() {
+        // 换分类先把上一份元数据丢掉，免得旧的大小/日期挂在新列表上
+        currentMeta.clear();
         // 没有在线仓库的类型，不尝试在线拉取
         if (!ONLINE_TYPES.contains(currentCategory)) {
             availableComponents.clear();
@@ -428,7 +432,82 @@ public class ContentsFragment extends Fragment {
                 }
             }
             refreshInstalledStatus();
+            loadMetaAsync();
         });
+    }
+
+    private void loadMetaAsync() {
+        final String category = currentCategory;
+        new Thread(() -> {
+            java.util.Map<String, org.json.JSONObject> meta = fetchMeta(category);
+            if (getActivity() == null) return;
+            requireActivity().runOnUiThread(() -> {
+                // 期间切了分类就丢弃，别把别的分类的元数据画到当前列表上
+                if (!category.equals(currentCategory)) return;
+                currentMeta = meta;
+                renderList();
+            });
+        }).start();
+    }
+
+    private java.util.Map<String, org.json.JSONObject> fetchMeta(String category) {
+        java.util.Map<String, org.json.JSONObject> map = new java.util.HashMap<>();
+        if (!ONLINE_TYPES.contains(category)) return map;
+        for (String template : INDEX_URL_TEMPLATES) {
+            String url = String.format(template.replace("index.txt", "meta.json"), category);
+            try {
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(15000);
+                if (conn.getResponseCode() != java.net.HttpURLConnection.HTTP_OK) continue;
+                String body;
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(conn.getInputStream()))) {
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) sb.append(line);
+                    body = sb.toString();
+                }
+                org.json.JSONObject json = new org.json.JSONObject(body);
+                java.util.Iterator<String> keys = json.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    map.put(key, json.optJSONObject(key));
+                }
+                if (!map.isEmpty()) return map;
+            } catch (Exception e) {
+                // 这个节点取不到就换下一个；全失败就当没有元数据
+            }
+        }
+        return map;
+    }
+
+    private static String describeMeta(org.json.JSONObject meta) {
+        if (meta == null) return "";
+        long size = meta.optLong("size", 0);
+        String created = meta.optString("created", "");
+        StringBuilder sb = new StringBuilder();
+        long days = daysSince(created);
+        if (days >= 0) sb.append(days == 0 ? "今天" : days + " 天前");
+        if (size > 0) {
+            if (sb.length() > 0) sb.append(" · ");
+            sb.append(String.format(java.util.Locale.ENGLISH, "%.1f MB", size / 1024.0 / 1024.0));
+        }
+        return sb.toString();
+    }
+
+    private static long daysSince(String isoTime) {
+        if (isoTime == null || isoTime.isEmpty()) return -1;
+        try {
+            java.text.SimpleDateFormat fmt = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.ENGLISH);
+            fmt.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            java.util.Date date = fmt.parse(isoTime);
+            if (date == null) return -1;
+            long diff = System.currentTimeMillis() - date.getTime();
+            return Math.max(0, diff / (24L * 60 * 60 * 1000));
+        } catch (Exception e) {
+            return -1;
+        }
     }
 
     private void refreshInstalledStatus() {
@@ -513,12 +592,13 @@ public class ContentsFragment extends Fragment {
         tv.setTextColor(getColorFromAttr(android.R.attr.textColorPrimary, Color.parseColor("#212121"), Color.parseColor("#FFFFFF")));
         middleLayout.addView(tv);
 
+        String metaText = describeMeta(currentMeta.get(filename));
         TextView statusTv = new TextView(requireContext());
         if (installed) {
-            statusTv.setText("已安装");
+            statusTv.setText(metaText.isEmpty() ? "已安装" : "已安装 · " + metaText);
             statusTv.setTextColor(Color.parseColor("#4CAF50"));
         } else {
-            statusTv.setText("可下载");
+            statusTv.setText(metaText.isEmpty() ? "可下载" : "可下载 · " + metaText);
             statusTv.setTextColor(getColorFromAttr(android.R.attr.textColorSecondary, Color.parseColor("#9E9E9E"), Color.parseColor("#757575")));
         }
         statusTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
