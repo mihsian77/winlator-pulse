@@ -45,10 +45,10 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 public class ContentsFragment extends Fragment {
-    private static final String[] FILE_TYPES = {"dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk", "virgl", "wine", "proton", "dxvk-nightly", "vkd3d-nightly", "d7vk-nightly", "dxvk-sarek-nightly"};
+    private static final String[] FILE_TYPES = {"dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk", "virgl", "wine", "proton", "vkd3d-nightly", "d7vk-nightly", "box64-nightly"};
 
     // 有在线仓库的组件类型（可以在线下载）
-    private static final java.util.Set<String> ONLINE_TYPES = new java.util.HashSet<>(java.util.Arrays.asList("dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk", "dxvk-nightly", "vkd3d-nightly", "d7vk-nightly", "dxvk-sarek-nightly"));
+    private static final java.util.Set<String> ONLINE_TYPES = new java.util.HashSet<>(java.util.Arrays.asList("dxvk", "vkd3d", "box64", "turnip", "wined3d", "d7vk", "d8vk", "vkd3d-nightly", "d7vk-nightly", "box64-nightly"));
     private static final String TZSD_EXTENSION = ".tzst";
     private static final int CORNER_RADIUS_DP = 12;
     private static final int ELEVATION_DP = 4;
@@ -74,13 +74,12 @@ public class ContentsFragment extends Fragment {
         return category.equalsIgnoreCase("wine") || category.equalsIgnoreCase("proton");
     }
 
-    // nightly 是 dxvk/vkd3d 的每日构建，必须装进稳定版目录才会出现在版本列表里
+    // nightly 是稳定版的每日构建，必须装进对应稳定版目录才会出现在版本列表里
     private static String resolveInstallDir(String category) {
         if (isWineOrProton(category)) return "";
-        if (category.equalsIgnoreCase("dxvk-nightly")) return "dxvk";
         if (category.equalsIgnoreCase("vkd3d-nightly")) return "vkd3d";
-        if (category.equalsIgnoreCase("dxvk-sarek-nightly")) return "dxvk";
         if (category.equalsIgnoreCase("d7vk-nightly")) return "d7vk";
+        if (category.equalsIgnoreCase("box64-nightly")) return "box64";
         return category;
     }
 
@@ -510,6 +509,30 @@ public class ContentsFragment extends Fragment {
         }
     }
 
+    // meta 里的 created 是统一格式的 ISO 时间串，直接按字典序比就是按时间比。
+    // 没有 meta 时返回 null，更新提示整个不生效，不影响基本列表。
+    private String latestComponentFile() {
+        String latest = null;
+        String latestCreated = "";
+        for (String f : availableComponents) {
+            org.json.JSONObject m = currentMeta.get(f);
+            if (m == null) continue;
+            String created = m.optString("created", "");
+            if (!created.isEmpty() && created.compareTo(latestCreated) > 0) {
+                latestCreated = created;
+                latest = f;
+            }
+        }
+        return latest;
+    }
+
+    private boolean hasAnyInstalled() {
+        for (String f : availableComponents) {
+            if (installedComponents.contains(f.replace(TZSD_EXTENSION, ""))) return true;
+        }
+        return false;
+    }
+
     private void refreshInstalledStatus() {
         installedComponents.clear();
         boolean isWine = isWineOrProton(currentCategory);
@@ -593,10 +616,15 @@ public class ContentsFragment extends Fragment {
         middleLayout.addView(tv);
 
         String metaText = describeMeta(currentMeta.get(filename));
+        // 本分类里最新的一个还没装、但装过旧的，就在最新那条上提示"有更新"
+        boolean updateHint = !installed && filename.equals(latestComponentFile()) && hasAnyInstalled();
         TextView statusTv = new TextView(requireContext());
         if (installed) {
             statusTv.setText(metaText.isEmpty() ? "已安装" : "已安装 · " + metaText);
             statusTv.setTextColor(Color.parseColor("#4CAF50"));
+        } else if (updateHint) {
+            statusTv.setText(metaText.isEmpty() ? "有更新" : "有更新 · " + metaText);
+            statusTv.setTextColor(Color.parseColor("#FF9800"));
         } else {
             statusTv.setText(metaText.isEmpty() ? "可下载" : "可下载 · " + metaText);
             statusTv.setTextColor(getColorFromAttr(android.R.attr.textColorSecondary, Color.parseColor("#9E9E9E"), Color.parseColor("#757575")));
