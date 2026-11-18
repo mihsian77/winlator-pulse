@@ -99,9 +99,9 @@ DXVK / VKD3D / WineD3D 的对话框用的是原始文本，只有 Turnip 踩了�
 | 分类 | 在线源 | 项目内置 | 说明 |
 |---|---|---|---|
 | `dxvk` / `vkd3d` | ✅ | — | 主组件，含 gplasync / sarek / arm64ec 变体 |
-| `dxvk-nightly` / `vkd3d-nightly` | ✅ | — | 每夜同步，只留最近几个 release |
+| `vkd3d-nightly` | ✅ | — | 每夜同步，只留最近几个 release |
 | `d7vk-nightly` | ✅ | — | 2026-11 接入，上游每天出，装进 `d7vk/` |
-| `dxvk-sarek-nightly` | ✅ | — | 2026-11 接入。**非 arm64ec 的 sarek 8 月停更了，现在同步的是 arm64ec 变体** |
+| `box64-nightly` | ✅ | — | 2026-11 接入，上游每天出，装进 `box64/`。我们主路线就是 box64，这是最实用的 nightly |
 | `box64` | ✅ | ✅ | 官方构建 |
 | `turnip` | ✅ | ✅（`turnip-26.2.0`） | 只列官方版本，自编译的带 `-dev` 不进列表 |
 | `wined3d` / `d7vk` / `d8vk` | ✅ | — | 小分类 |
@@ -122,10 +122,17 @@ DXVK / VKD3D / WineD3D 的对话框用的是原始文本，只有 Turnip 踩了�
 | 上游标签 | 状态 |
 |---|---|
 | `vkd3d-nightly` / `d7vk-nightly` / `box64-nightly` / `fex-nightly` | 每天更新 |
-| `dxvk-nightly`（普通） | 2026-08-24 停更，分类里只剩历史包 |
-| `dxvk-sarek-nightly`（非 arm64ec） | 2026-08 停更 |
-| `dxvk-sarek-arm64ec-nightly` | 仍在更新（最近 10-26） |
-| `fex-unix` / `box64-arm64ec` 等变体 | 在更新，未接入 |
+| `dxvk-nightly`（普通） | 2026-08-24 停更。**分类已撤**，唯一的历史包并入 `dxvk` |
+| `dxvk-sarek-nightly`（非 arm64ec） | 2026-08 停更。**分类已撤** |
+| `dxvk-sarek-arm64ec-nightly` | 仍在更新，但 arm64ec 是 FEX + Proton-arm64ec 路线用的，我们 box64 路线用不上，不同步 |
+| `fex-unix` / `box64-arm64ec` 等变体 | 在更新，未接入（我们没有 FEX 支持） |
+
+### 逆向包对照结论（winlator_reverse_v6.1，2026-11-18）
+- **hook 三件套不用搬**：`libfile_redirect_hook` 钩 `fopen`、`libmain_hook` 钩 `android_dlopen_ext`/`android_load_sphal_library`、`libgsl_alloc_hook` 钩 `gsl_memory_alloc_pure(_64)/free`，全依赖 `libhook_impl.so`（inline hook 引擎）。这是 bionic 路线在 Android 上加载 glibc 库的胶水，我们本来就是 glibc 路线，自带 loader，没有这层需求。
+- **gpu_cards.json 不用补**：我们的 289 条与 BionicHub 的逐条一致（vendorID/deviceID 集合零差异）。
+- **user.reg 保留问题我们没有**：GameNative #2377 修的是换 base prefix 丢注册表；Pulse 每容器独立 `.wine`，换 wine 版本不删 prefix，只跑 `wineboot -u` 原地更新。
+- 中文输入的三家实现对照见逆向包 `03_对照/SOURCES.md`（暂缓移植，用户已定）。
+- lsfg 帧生成在 BionicHub 里是外挂 Vulkan layer 形态（so + json 齐全），可作独立挂载实验的素材。
 
 
 ### SoundFont 取舍
